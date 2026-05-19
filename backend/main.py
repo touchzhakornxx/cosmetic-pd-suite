@@ -481,6 +481,17 @@ _NEWS_QUERIES = [
     ('natural organic beauty trends',     'Natural & Organic'),
 ]
 
+@app.get('/api/trends/debug')
+async def debug_trends():
+    """Debug: show raw response from rss2json for first query."""
+    rss_url = ("https://news.google.com/rss/search"
+               "?q=cosmetic+ingredient+trends+2025&hl=en&gl=US&ceid=US:en")
+    proxy_url = f"https://api.rss2json.com/v1/api.json?rss_url={url_quote(rss_url)}&count=3"
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get(proxy_url)
+    return {'status_code': r.status_code, 'body': r.text[:2000]}
+
+
 @app.get('/api/trends/news')
 async def get_trends_news():
     """Fetch cosmetic news via rss2json.com proxy (avoids server-side Google block)."""

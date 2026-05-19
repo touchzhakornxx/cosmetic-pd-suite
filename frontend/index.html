@@ -904,6 +904,27 @@
             </select>
           </div>
           <div>
+            <label class="block text-xs text-gray-500 mb-1.5">หมวดผลิตภัณฑ์</label>
+            <select id="ws-product-category" onchange="_updateProductTypes()"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-gray-300
+                     focus:border-green focus:outline-none cursor-pointer transition-colors">
+              <option value="">— เลือกหมวด —</option>
+              <option>Skin Care</option>
+              <option>Make up</option>
+              <option>Hair care</option>
+              <option>Oral Care</option>
+              <option>Nail care</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1.5">ประเภทผลิตภัณฑ์</label>
+            <select id="ws-product-type"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-gray-300
+                     focus:border-green focus:outline-none cursor-pointer transition-colors">
+              <option value="">— เลือกประเภท —</option>
+            </select>
+          </div>
+          <div>
             <label class="block text-xs text-gray-500 mb-1.5">ขนาด Batch (กรัม)</label>
             <input id="ws-batch-size" type="number" value="100" min="1" step="0.1"
               oninput="recalcTotal()"
@@ -1420,6 +1441,14 @@ async function apiFetch(path, options) {
 }
 
 /* ───────────────────── router ───────────────────── */
+const PRODUCT_CATEGORIES = {
+  'Skin Care':  ['Cream','Serum','Lotion','Toner','Essence','Cleanser','Gel','Sunscreen','Mask','Clay Mask','Mask Sheet','Sleeping Mask','Antiperspirant & Deodorant'],
+  'Make up':    ['AA/BB/CC/DD Cream','EE Cream','Foundation','Concealer','Corrector','Loose Powder','Compact Powder','Blush on','Lipstick','Lip Balm','Lip Gloss','Liquid Lip','Primer','Eyeshadow','Eyeliner','Mascara','Eyebrow Product','Cushion'],
+  'Hair care':  ['Shampoo','Conditioner','Hair Tonic','Hair Treatment','Hair Serum','Hair Styling Product','Hair Remover'],
+  'Oral Care':  ['Tooth Paste','Mouth Wash','Mouth Spray'],
+  'Nail care':  ['Nail Polish','Nail Remover','Cuticle Remover'],
+};
+
 const PAGE_META = {
   dashboard:        ['ภาพรวม',          'Cosmetic P&D Intelligence Suite'],
   materials:        ['วัตถุดิบ',         'คลังสินค้าวัตถุดิบทั้งหมด'],
@@ -1990,6 +2019,10 @@ function _renderRecentFormulas(formulas) {
     const stCfg   = _FORMULA_STATUS[f.status] || { color: '#6b7280', label: f.status };
     const skin    = _SKIN_TH[f.target_skin_type] || f.target_skin_type || '';
     const when    = _relativeTime(f.created_at);
+    const prodBadge = f.product_type
+      ? `<span class="inline-flex text-[9px] font-semibold px-1.5 py-0.5 rounded-full
+                      bg-emerald-50 text-emerald-700 border border-emerald-200 mr-1">${f.product_type}</span>`
+      : '';
     const meta    = [f.formula_code, skin].filter(Boolean).join(' · ');
 
     // Each row: flex items-center justify-between — no table, no dividers
@@ -2007,7 +2040,7 @@ function _renderRecentFormulas(formulas) {
         <!-- Text: name bold dark + status · code smaller gray -->
         <div class="flex flex-col min-w-0">
           <span class="text-sm font-semibold text-gray-900 truncate leading-snug">
-            ${f.product_name || '(ไม่มีชื่อ)'}
+            ${prodBadge}${f.product_name || '(ไม่มีชื่อ)'}
           </span>
           <span class="text-[11px] mt-0.5 font-medium truncate"
                 style="color:${stCfg.color}">
@@ -2425,6 +2458,8 @@ async function loadWorksheet() {
   el('ws-product-name').value     = '';
   el('ws-skin-type').value        = 'face';
   el('ws-batch-size').value       = '100';
+  el('ws-product-category').value = '';
+  el('ws-product-type').innerHTML = '<option value="">— เลือกประเภท —</option>';
   el('ws-notes').value            = '';
   el('ws-ingredients').innerHTML  = '';
   WS.rowCount = 0;
@@ -2605,11 +2640,21 @@ function recalcTotal() {
   _syncCompliancePanel(violations);
 }
 
+function _updateProductTypes() {
+  const cat = el('ws-product-category').value;
+  const sel = el('ws-product-type');
+  const types = PRODUCT_CATEGORIES[cat] || [];
+  sel.innerHTML = '<option value="">— เลือกประเภท —</option>' +
+    types.map(t => `<option>${t}</option>`).join('');
+}
+
 async function saveFormula() {
-  const code  = el('ws-formula-code').value.trim();
-  const name  = el('ws-product-name').value.trim();
-  const type  = el('ws-skin-type').value;
-  const batch = parseFloat(el('ws-batch-size').value) || 100;
+  const code     = el('ws-formula-code').value.trim();
+  const name     = el('ws-product-name').value.trim();
+  const type     = el('ws-skin-type').value;
+  const batch    = parseFloat(el('ws-batch-size').value) || 100;
+  const prodCat  = el('ws-product-category').value || null;
+  const prodType = el('ws-product-type').value || null;
 
   if (!code) { toast('กรุณากรอกรหัสสูตร', true); return; }
   if (!name) { toast('กรุณากรอกชื่อผลิตภัณฑ์', true); return; }
@@ -2639,7 +2684,9 @@ async function saveFormula() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         formula_code: code, product_name: name,
-        target_skin_type: type, batch_size_g: batch, ingredients,
+        target_skin_type: type, batch_size_g: batch,
+        product_category: prodCat, product_type: prodType,
+        ingredients,
       }),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);

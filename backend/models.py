@@ -61,4 +61,6 @@ class FormulaCreate(BaseModel):
     target_skin_type: str
     batch_size_g: float = 100.0
     loss_percentage: float = 0.0
+    product_category: Optional[str] = None
+    product_type: Optional[str] = None
     ingredients: List[FormulaIngredientInput] = []

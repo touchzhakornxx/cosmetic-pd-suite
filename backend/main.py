@@ -483,35 +483,36 @@ _NEWS_QUERIES = [
 
 @app.get('/api/trends/news')
 async def get_trends_news():
+    """Fetch cosmetic news via rss2json.com proxy (avoids server-side Google block)."""
     articles, seen = [], set()
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; newsbot/1.0)'}
-    async with httpx.AsyncClient(timeout=15, headers=headers) as c:
+    async with httpx.AsyncClient(timeout=20) as c:
         for query, category in _NEWS_QUERIES:
-            url = (f"https://news.google.com/rss/search"
-                   f"?q={url_quote(query)}&hl=en&gl=US&ceid=US:en")
+            rss_url = (f"https://news.google.com/rss/search"
+                       f"?q={url_quote(query)}&hl=en&gl=US&ceid=US:en")
+            proxy_url = (f"https://api.rss2json.com/v1/api.json"
+                         f"?rss_url={url_quote(rss_url)}&count=6")
             try:
-                r = await c.get(url)
+                r = await c.get(proxy_url)
                 if r.status_code != 200:
                     continue
-                root = ET.fromstring(r.content)
-                for item in root.findall('.//item')[:5]:
-                    title = item.findtext('title', '').strip()
-                    # Google News appends " - Source" to title — strip it
+                data = r.json()
+                if data.get('status') != 'ok':
+                    continue
+                for item in data.get('items', [])[:5]:
+                    title = item.get('title', '').strip()
                     if ' - ' in title:
                         title, src_from_title = title.rsplit(' - ', 1)
                     else:
-                        src_from_title = ''
+                        src_from_title = item.get('author', '')
                     if title in seen:
                         continue
                     seen.add(title)
-                    source_el = item.find('source')
-                    pub = item.findtext('pubDate', '')[:16]
+                    pub = (item.get('pubDate') or '')[:10]
                     articles.append({
                         'title':    title.strip(),
-                        'link':     item.findtext('link', ''),
+                        'link':     item.get('link', ''),
                         'pubDate':  pub,
-                        'source':   (source_el.text if source_el is not None
-                                     else src_from_title),
+                        'source':   item.get('author') or src_from_title,
                         'category': category,
                     })
             except Exception:

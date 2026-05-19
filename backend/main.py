@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 from typing import Dict, List, Optional, Set
 
+import httpx
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -407,6 +408,60 @@ async def get_scrape(job_id: str):
         with open(result_path, 'r', encoding='utf-8') as f:
             result = json.load(f)
     return {'job': job, 'result': result}
+
+
+# ------------------------------------------------------------------
+# AI — Trade Name → INCI
+# ------------------------------------------------------------------
+
+GEMINI_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+
+async def _gemini_trade_to_inci(trade_name: str) -> dict:
+    prompt = (
+        "You are a cosmetic ingredient expert. "
+        "Convert the trade name below to its INCI (International Nomenclature of Cosmetic Ingredients) name.\n\n"
+        f"Trade name: {trade_name}\n\n"
+        "Reply ONLY with valid JSON, no markdown fences:\n"
+        '{"inci_name":"...","confidence":"high|medium|low","notes":"brief reason"}'
+    )
+    async with httpx.AsyncClient(timeout=15) as c:
+        r = await c.post(
+            f"{GEMINI_URL}?key={GEMINI_KEY}",
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+        )
+    if r.status_code != 200:
+        raise HTTPException(502, f"Gemini error {r.status_code}: {r.text[:200]}")
+    raw = r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+    raw = raw.replace('```json', '').replace('```', '').strip()
+    return json.loads(raw)
+
+
+@app.post('/api/ai/trade-to-inci')
+async def trade_to_inci(body: dict):
+    trade_name = (body.get('trade_name') or '').strip()
+    if not trade_name:
+        raise HTTPException(400, 'trade_name is required')
+
+    # 1. Try DB first (free, instant)
+    db_results = await search_raw_materials(trade_name, limit=5)
+    for r in db_results:
+        tn = (r.get('trade_name') or '').lower()
+        if tn and trade_name.lower() in tn or tn in trade_name.lower():
+            if r.get('inci_name'):
+                return {
+                    'inci_name':  r['inci_name'],
+                    'source':     'db',
+                    'confidence': 'high',
+                    'notes':      f"พบใน database: {r['trade_name']}",
+                }
+
+    # 2. Fallback to Gemini
+    if not GEMINI_KEY:
+        raise HTTPException(503, 'GEMINI_API_KEY not configured')
+    result = await _gemini_trade_to_inci(trade_name)
+    result['source'] = 'ai'
+    return result
 
 
 # ------------------------------------------------------------------

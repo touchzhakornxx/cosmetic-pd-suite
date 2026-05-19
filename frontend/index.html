@@ -1257,9 +1257,26 @@
         <label class="block text-xs text-gray-500 mb-1.5">
           ชื่อสินค้า (Trade Name) <span class="text-red-400">*</span>
         </label>
-        <input id="pm-trade-name" type="text" placeholder="เช่น Ceramide NP"
-          class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
-                 placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+        <div class="flex gap-2">
+          <input id="pm-trade-name" type="text" placeholder="เช่น Ceramide NP"
+            class="flex-1 bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                   placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+          <button onclick="aiTradeToInci('pm-trade-name','pm-inci-name','pm-ai-status')"
+                  title="แปลง Trade Name → INCI ด้วย AI"
+                  class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-lg
+                         bg-emerald-50 border border-emerald-200 text-emerald-700
+                         hover:bg-emerald-100 text-xs font-medium transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+                   m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+                   A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+                   c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            AI
+          </button>
+        </div>
+        <p id="pm-ai-status" class="text-[11px] mt-1 text-emerald-600 hidden"></p>
       </div>
       <div>
         <label class="block text-xs text-gray-500 mb-1.5">
@@ -1361,6 +1378,82 @@ const _HERO_SUBS = {
   'formula-detail': 'Formula Details & Analysis',
   labsheet:         'Lab Sheet & Manufacturing Report',
 };
+
+async function _aiLookupInci(rowId, tradeName, btn) {
+  const dd = document.getElementById(`mat-dd-${rowId}`);
+  btn.textContent = '⏳ กำลังค้นหา...';
+  btn.disabled = true;
+  try {
+    const res = await apiFetch('/api/ai/trade-to-inci', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_name: tradeName }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'error');
+    const src = data.source === 'db' ? '📦' : '✨ AI';
+    dd.innerHTML = `
+      <div class="px-3 py-2.5">
+        <p class="text-[10px] text-gray-500 mb-1">${src} · ${data.confidence} confidence</p>
+        <p class="text-sm font-medium text-white">${_safeHtml(data.inci_name)}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">${_safeHtml(data.notes || '')}</p>
+        <button onmousedown="event.preventDefault();_aiApplyInci(${rowId},'${tradeName.replace(/'/g,"\\'")}','${data.inci_name.replace(/'/g,"\\'")}')"
+                class="mt-2 text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700">
+          ใช้ชื่อนี้
+        </button>
+      </div>`;
+  } catch(e) {
+    dd.innerHTML = `<div class="px-3 py-2 text-xs text-red-400">❌ ${e.message}</div>`;
+  }
+}
+
+function _aiApplyInci(rowId, tradeName, inciName) {
+  const rows = document.querySelectorAll('#ing-table-body tr');
+  for (const row of rows) {
+    const input = row.querySelector('.ing-mat-input');
+    if (input && input.value.trim().toLowerCase() === tradeName.toLowerCase()) {
+      input.value = tradeName;
+      row.querySelector('.ing-mat-id').value = '';
+      row.querySelector('.ing-mat-data').value = JSON.stringify({
+        trade_name: tradeName, inci_name: inciName, id: null
+      });
+      _matDdClose(rowId);
+      toast(`✨ ใช้ INCI: ${inciName}`);
+      return;
+    }
+  }
+  _matDdClose(rowId);
+}
+
+async function aiTradeToInci(tradeInputId, inciInputId, statusId) {
+  const tradeInput  = document.getElementById(tradeInputId);
+  const inciInput   = document.getElementById(inciInputId);
+  const statusEl    = document.getElementById(statusId);
+  const tradeName   = tradeInput.value.trim();
+  if (!tradeName) { toast('กรุณากรอกชื่อสินค้าก่อน'); return; }
+
+  statusEl.textContent = '⏳ กำลังค้นหา...';
+  statusEl.classList.remove('hidden', 'text-red-500');
+  statusEl.classList.add('text-emerald-600');
+
+  try {
+    const res = await apiFetch('/api/ai/trade-to-inci', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_name: tradeName }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'AI error');
+
+    inciInput.value = data.inci_name;
+    const src = data.source === 'db' ? '📦 จาก Database' : '✨ จาก AI';
+    const conf = data.confidence === 'high' ? '' : ` (${data.confidence})`;
+    statusEl.textContent = `${src}${conf} — ${data.notes || ''}`;
+  } catch (e) {
+    statusEl.textContent = `❌ ${e.message}`;
+    statusEl.classList.replace('text-emerald-600', 'text-red-500');
+  }
+}
 
 function toggleMobileSidebar() {
   document.getElementById('sidebar').classList.toggle('mobile-open');
@@ -2098,7 +2191,21 @@ function _matSearch(input, id) {
         .slice(0, 15);
       _matResults[id] = res;
       if (!res.length) {
-        dd.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500 italic">ไม่พบวัตถุดิบที่ตรงกัน</div>';
+        dd.innerHTML = `
+          <div class="px-3 py-2 text-xs text-gray-500 italic">ไม่พบวัตถุดิบที่ตรงกัน</div>
+          <div class="px-3 py-2 border-t border-border/40">
+            <button onmousedown="event.preventDefault();_aiLookupInci(${id},'${q.replace(/'/g,"\\'")}',this)"
+                    class="flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+                     m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+                     A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+                     c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+              </svg>
+              ✨ ค้นหา INCI ด้วย AI
+            </button>
+          </div>`;
         return;
       }
       dd.innerHTML = res.map((m, i) => `

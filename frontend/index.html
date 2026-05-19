@@ -26,6 +26,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: hidden; max-width: 100%; }
     body { font-family: 'Inter', sans-serif; }
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -180,7 +181,9 @@
     /* ── Mobile sidebar drawer ──────────────────────────────────────── */
     @media (max-width: 767px) {
       #sidebar {
-        position: fixed; inset-y: 0; left: 0; z-index: 40;
+        position: fixed;
+        top: 0; bottom: 0; left: 0;
+        z-index: 40;
         transform: translateX(-100%);
         transition: transform .25s ease;
       }
@@ -189,6 +192,8 @@
         transform: translateX(0);
       }
       #sidebar-overlay.show { display: block !important; }
+      /* Hero banner — shorter on mobile */
+      #hero-banner { min-height: 140px !important; }
     }
 
     /* ── Print styles ─────────────────────────────────────── */

@@ -236,16 +236,103 @@ REGULATORY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def check_formula(ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+# ── ประเภทผลิตภัณฑ์ที่เป็น Rinse-off ─────────────────────────────────────
+_RINSE_OFF_TYPES = {
+    'Cleanser', 'Shampoo', 'Conditioner', 'Hair Remover',
+    'Mouth Wash', 'Tooth Paste', 'Mouth Spray',
+    'Nail Remover', 'Cuticle Remover',
+}
+
+# ── กฎเฉพาะตามประเภทผลิตภัณฑ์ ─────────────────────────────────────────────
+# Key: (inci_name_upper, context) — context คือ product_category หรือ 'rinse-off'/'leave-on'
+# Value: override fields (max_pct, notes, level)
+PRODUCT_TYPE_OVERRIDES: Dict[tuple, Dict[str, Any]] = {
+
+    # Salicylic Acid — rinse-off ใช้ได้ถึง 3%, leave-on 2%
+    ('SALICYLIC ACID', 'rinse-off'): {
+        'max_pct': 3.0,
+        'notes': 'Rinse-off (Cleanser/Shampoo): ใช้ได้ไม่เกิน 3% — คำเตือน: ห้ามใช้กับเด็กอายุต่ำกว่า 3 ปี (ภาคผนวก III)',
+    },
+    ('SALICYLIC ACID', 'leave-on'): {
+        'max_pct': 2.0,
+        'notes': 'Leave-on (Serum/Cream/Toner): ใช้ได้ไม่เกิน 2% — คำเตือน: ห้ามใช้กับเด็กอายุต่ำกว่า 3 ปี (ภาคผนวก III)',
+    },
+
+    # Retinol — Skin Care face ใช้ได้ 1%, Body 0.3%
+    ('RETINOL', 'Skin Care'): {
+        'max_pct': 1.0,
+        'notes': 'Skin Care (face): ใช้ได้ไม่เกิน 1% — ห้ามใช้บริเวณรอบดวงตาและในผลิตภัณฑ์เด็ก (SCCS 2022)',
+    },
+    ('RETINOL', 'Make up'): {
+        'max_pct': 0.3,
+        'notes': 'Make up: ใช้ได้ไม่เกิน 0.3% — ไม่แนะนำใช้ในผลิตภัณฑ์แต่งหน้าบริเวณดวงตา (SCCS 2022)',
+    },
+
+    # Formaldehyde — ห้ามใช้ทั่วไป แต่ใน Nail care ใช้เป็น nail hardener ได้ ≤ 5%
+    ('FORMALDEHYDE', 'Nail care'): {
+        'level': 'restricted',
+        'max_pct': 5.0,
+        'notes': 'Nail hardener: ใช้ได้ไม่เกิน 5% — ห้ามสัมผัสผิวหนัง ต้องมีคำแนะนำป้องกันบนฉลาก (ภาคผนวก III)',
+    },
+
+    # Resorcinol — ใช้ใน Hair dye เท่านั้น
+    ('RESORCINOL', 'Hair care'): {
+        'max_pct': 0.5,
+        'notes': 'Hair dye/ย้อมผม: ใช้ได้ไม่เกิน 0.5% — ต้องระบุบนฉลาก: "มีเรซอร์ซินอล — ล้างออกหลังใช้งาน" (ภาคผนวก III)',
+    },
+
+    # Kojic Acid — จำกัดเฉพาะ Skin Care
+    ('KOJIC ACID', 'Skin Care'): {
+        'max_pct': 1.0,
+        'notes': 'Skin Care: ใช้ได้ไม่เกิน 1% ในผลิตภัณฑ์ผิวหน้า — ต้องระบุคำเตือนการใช้งานบนฉลาก (ประกาศ อย.)',
+    },
+
+    # Alpha-Arbutin — จำกัดเฉพาะ Skin Care
+    ('ALPHA-ARBUTIN', 'Skin Care'): {
+        'max_pct': 2.0,
+        'notes': 'Skin Care (face): ใช้ได้ไม่เกิน 2% — สำหรับผลิตภัณฑ์ทาตัวแนะนำไม่เกิน 0.5% (SCCS/1550/15)',
+    },
+
+    # Zinc Oxide / Titanium Dioxide — ใช้ใน Make up เป็นสารให้สี opacifier
+    ('ZINC OXIDE', 'Make up'): {
+        'max_pct': 25.0,
+        'notes': 'Make up: ใช้เป็น opacifier/colorant ได้ไม่เกิน 25% — อนุภาคนาโนต้องระบุ [nano] บนฉลาก',
+    },
+    ('TITANIUM DIOXIDE', 'Make up'): {
+        'max_pct': 25.0,
+        'notes': 'Make up: ใช้เป็น opacifier/colorant ได้ไม่เกิน 25% — อนุภาคนาโนต้องระบุ [nano] บนฉลาก',
+    },
+
+    # Glycolic Acid / Lactic Acid — leave-on เข้มกว่า rinse-off
+    ('GLYCOLIC ACID', 'rinse-off'): {
+        'max_pct': 10.0,
+        'notes': 'Rinse-off: ใช้ได้ไม่เกิน 10% — ต้องระบุคำเตือนการใช้สารกันแดดร่วม',
+    },
+    ('LACTIC ACID', 'rinse-off'): {
+        'max_pct': 10.0,
+        'notes': 'Rinse-off: ใช้ได้ไม่เกิน 10% — pH ≥ 3.5',
+    },
+
+    # Niacinamide — ใช้ใน Skin Care แนะนำไม่เกิน 5%
+    ('NIACINAMIDE', 'Skin Care'): {
+        'max_pct': 5.0,
+        'notes': 'Skin Care: แนะนำไม่เกิน 5% — ความเข้มข้นสูงอาจทำให้ผิวแดงและระคายเคือง (SCCS 2021)',
+    },
+}
+
+
+def check_formula(
+    ingredients: List[Dict[str, Any]],
+    product_category: Optional[str] = None,
+    product_type: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """
     ตรวจสอบส่วนผสมในสูตรเทียบกับฐานข้อมูล ACD
-
-    แต่ละรายการใน ingredients ควรมี:
-      inci_name (str), percentage (float),
-      material_id (str, optional), trade_name (str, optional)
-
-    คืนค่ารายการที่พบในฐานข้อมูลกฎระเบียบ (ว่าง = ผ่านการตรวจสอบ)
+    รองรับกฎเฉพาะตาม product_category และ product_type
     """
+    is_rinse = (product_type or '') in _RINSE_OFF_TYPES
+    app_context = 'rinse-off' if is_rinse else 'leave-on'
+
     findings: List[Dict[str, Any]] = []
     for ing in ingredients:
         key = (ing.get('inci_name') or ing.get('name') or '').strip().upper()
@@ -254,20 +341,36 @@ def check_formula(ingredients: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         rule = REGULATORY.get(key)
         if not rule:
             continue
+
+        # ค้นหา override ตามลำดับความสำคัญ:
+        # 1. product_category เฉพาะ (เช่น 'Nail care', 'Hair care')
+        # 2. rinse-off / leave-on
+        override = {}
+        if product_category:
+            override = PRODUCT_TYPE_OVERRIDES.get((key, product_category), {})
+        if not override:
+            override = PRODUCT_TYPE_OVERRIDES.get((key, app_context), {})
+
+        effective_level   = override.get('level',   rule['level'])
+        effective_max_pct = override.get('max_pct', rule['max_pct'])
+        effective_notes   = override.get('notes',   rule['notes'])
+        rule_source       = 'product-type' if override else 'general'
+
         pct = float(ing.get('percentage') or 0)
-        exceeded = rule['level'] == 'banned' or (
-            rule['max_pct'] is not None and pct > rule['max_pct']
+        exceeded = effective_level == 'banned' or (
+            effective_max_pct is not None and pct > effective_max_pct
         )
         findings.append({
             'inci_name':   ing.get('inci_name') or ing.get('name'),
             'trade_name':  ing.get('trade_name'),
             'material_id': ing.get('material_id'),
             'annex':       rule['annex'],
-            'level':       rule['level'],
-            'max_pct':     rule['max_pct'],
+            'level':       effective_level,
+            'max_pct':     effective_max_pct,
             'actual_pct':  pct,
             'exceeded':    exceeded,
             'cas':         rule.get('cas', ''),
-            'notes':       rule['notes'],
+            'notes':       effective_notes,
+            'rule_source': rule_source,
         })
     return findings

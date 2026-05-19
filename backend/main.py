@@ -128,13 +128,19 @@ async def api_update_material(material_id: str, data: MaterialPatch):
 
 
 @app.post('/api/compliance/check')
-async def api_compliance_check(data: ComplianceCheckRequest):
-    findings = compliance_check_formula([i.model_dump() for i in data.ingredients])
+async def api_compliance_check(data: ComplianceCheckRequest, product_category: str = '', product_type: str = ''):
+    findings = compliance_check_formula(
+        [i.model_dump() for i in data.ingredients],
+        product_category=product_category or None,
+        product_type=product_type or None,
+    )
     return {
         'findings': findings,
         'has_banned':    any(f['level'] == 'banned' for f in findings),
         'has_violation': any(f['exceeded'] for f in findings),
         'total': len(findings),
+        'product_category': product_category,
+        'product_type': product_type,
     }
 
 

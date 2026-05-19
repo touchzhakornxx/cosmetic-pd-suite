@@ -1141,6 +1141,20 @@
           </div>
         </div>
 
+        <!-- Compliance Check -->
+        <div class="lt-card p-5">
+          <div class="flex items-center gap-2 mb-3">
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0
+                   01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622
+                   5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <h3 class="text-sm font-semibold text-slate-800">Regulatory Compliance</h3>
+          </div>
+          <div id="fd-compliance-section"></div>
+        </div>
+
       </div><!-- /fd-content -->
     </div><!-- /view-formula-detail -->
 
@@ -2975,9 +2989,13 @@ function _renderFormulaDetail(f) {
     ? new Date(f.updated_at).toLocaleDateString('th-TH') : '—';
 
   const [sc, sl] = statusMap[f.status] || ['#6b7280', f.status];
+  const prodBadge = f.product_type
+    ? `<span class="badge bg-emerald-50 text-emerald-700 border border-emerald-200">${f.product_category ? f.product_category + ' › ' : ''}${f.product_type}</span>`
+    : '';
   el('fd-badges').innerHTML =
     badgeHtml(sl, sc) + ' ' +
-    `<span class="badge bg-cardHov text-gray-300">${skinMap[f.target_skin_type]||f.target_skin_type}</span>`;
+    `<span class="badge bg-cardHov text-gray-300">${skinMap[f.target_skin_type]||f.target_skin_type}</span>` +
+    (prodBadge ? ' ' + prodBadge : '');
 
   el('fd-batch').textContent = `${Number(f.batch_size_g).toLocaleString()} g`;
   el('fd-skin').textContent  = skinMap[f.target_skin_type] || f.target_skin_type;
@@ -3028,6 +3046,75 @@ function _renderFormulaDetail(f) {
 
   el('fd-skeleton').classList.add('hidden');
   el('fd-content').classList.remove('hidden');
+
+  // Run product-type-aware compliance check
+  _runComplianceCheck(f, ings);
+}
+
+async function _runComplianceCheck(f, ings) {
+  const el2 = document.getElementById('fd-compliance-section');
+  if (!el2) return;
+  el2.innerHTML = '<div class="text-xs text-gray-400 py-2">⏳ กำลังตรวจสอบ...</div>';
+
+  const params = new URLSearchParams();
+  if (f.product_category) params.set('product_category', f.product_category);
+  if (f.product_type)     params.set('product_type', f.product_type);
+
+  const payload = {
+    ingredients: ings.map(i => ({
+      inci_name:   (i.raw_materials || {}).inci_name || '',
+      trade_name:  (i.raw_materials || {}).trade_name || '',
+      material_id: i.material_id,
+      percentage:  i.percentage,
+    }))
+  };
+
+  try {
+    const url = `/api/compliance/check${params.toString() ? '?' + params : ''}`;
+    const data = await apiFetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+
+    if (!data.findings.length) {
+      el2.innerHTML = `
+        <div class="flex items-center gap-2 text-emerald-600 text-sm py-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          ผ่านการตรวจสอบ — ไม่พบสารควบคุมในสูตรนี้
+          ${f.product_type ? `<span class="text-[11px] text-gray-400">(ตรวจตาม ${f.product_type})</span>` : ''}
+        </div>`;
+      return;
+    }
+
+    const contextNote = f.product_type
+      ? `<p class="text-[11px] text-blue-600 mb-3">🎯 ใช้กฎเฉพาะสำหรับ <strong>${f.product_type}</strong></p>`
+      : '<p class="text-[11px] text-gray-400 mb-3">ใช้กฎทั่วไป (ยังไม่ได้เลือกประเภทผลิตภัณฑ์)</p>';
+
+    el2.innerHTML = contextNote + data.findings.map(f2 => {
+      const isViolation = f2.exceeded;
+      const isBanned    = f2.level === 'banned';
+      const isSpecific  = f2.rule_source === 'product-type';
+      const bg    = isBanned ? 'bg-red-50 border-red-200' : isViolation ? 'bg-orange-50 border-orange-200' : 'bg-yellow-50 border-yellow-200';
+      const icon  = isBanned ? '🔴' : isViolation ? '🟠' : '🟡';
+      const label = isBanned ? 'ห้ามใช้' : isViolation ? `เกินกำหนด (${f2.actual_pct}% > ${f2.max_pct}%)` : `ควบคุม (${f2.actual_pct}% / max ${f2.max_pct}%)`;
+      return `
+        <div class="rounded-lg border p-3 ${bg} mb-2">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-slate-800">${icon} ${f2.inci_name}</p>
+              <p class="text-[11px] text-gray-600 mt-0.5">${label}</p>
+              <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">${f2.notes}</p>
+            </div>
+            ${isSpecific ? '<span class="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex-shrink-0">เฉพาะผลิตภัณฑ์</span>' : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el2.innerHTML = `<div class="text-xs text-red-400">❌ ${e.message}</div>`;
+  }
 }
 
 /* ───────────────────── lab sheet ───────────────────── */

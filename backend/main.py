@@ -486,7 +486,7 @@ async def debug_trends():
     """Debug: show raw response from rss2json for first query."""
     rss_url = ("https://news.google.com/rss/search"
                "?q=cosmetic+ingredient+trends+2025&hl=en&gl=US&ceid=US:en")
-    proxy_url = f"https://api.rss2json.com/v1/api.json?rss_url={url_quote(rss_url)}&count=3"
+    proxy_url = f"https://api.rss2json.com/v1/api.json?rss_url={url_quote(rss_url)}"
     async with httpx.AsyncClient(timeout=20) as c:
         r = await c.get(proxy_url)
     return {'status_code': r.status_code, 'body': r.text[:2000]}
@@ -501,7 +501,7 @@ async def get_trends_news():
             rss_url = (f"https://news.google.com/rss/search"
                        f"?q={url_quote(query)}&hl=en&gl=US&ceid=US:en")
             proxy_url = (f"https://api.rss2json.com/v1/api.json"
-                         f"?rss_url={url_quote(rss_url)}&count=6")
+                         f"?rss_url={url_quote(rss_url)}")
             try:
                 r = await c.get(proxy_url)
                 if r.status_code != 200:

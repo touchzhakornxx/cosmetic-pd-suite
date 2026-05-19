@@ -786,16 +786,31 @@
 
     <!-- ─── FORMULAS ─── -->
     <div id="view-formulas" class="view hidden space-y-5 mt-6">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-xs text-gray-500">โปรเจกต์สูตรผลิตภัณฑ์ทั้งหมด</p>
-        <button onclick="navigate('worksheet')"
-          class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green text-black
-                 text-xs font-semibold hover:bg-green/90 transition-colors">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-          </svg>
-          สร้างสูตรใหม่
-        </button>
+        <div class="flex gap-2">
+          <button onclick="openAiStarter()"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg
+                   bg-emerald-50 border border-emerald-200 text-emerald-700
+                   text-xs font-semibold hover:bg-emerald-100 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+                   m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+                   A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+                   c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            ✨ AI Starter
+          </button>
+          <button onclick="navigate('worksheet')"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green text-black
+                   text-xs font-semibold hover:bg-green/90 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            สร้างสูตรใหม่
+          </button>
+        </div>
       </div>
       <div id="formulas-body"><div class="skeleton h-56"></div></div>
     </div>
@@ -3432,8 +3447,249 @@ async function _pollBulkJob() {
   }
 }
 
+/* ───────────────────── AI Formula Starter ───────────────────── */
+let _aisResult = null;
+
+function openAiStarter() {
+  _aisResult = null;
+  document.getElementById('ai-starter-result').classList.add('hidden');
+  document.getElementById('ai-starter-form').classList.remove('hidden');
+  document.getElementById('ais-btn-label').textContent = 'สร้างสูตรตั้งต้น';
+  document.getElementById('ai-starter-modal').classList.remove('hidden');
+}
+function closeAiStarter() {
+  document.getElementById('ai-starter-modal').classList.add('hidden');
+}
+function _aisUpdateTypes() {
+  const cat = document.getElementById('ais-category').value;
+  const sel = document.getElementById('ais-type');
+  const types = PRODUCT_CATEGORIES[cat] || [];
+  sel.innerHTML = '<option value="">— เลือกประเภท —</option>' +
+    types.map(t => `<option>${t}</option>`).join('');
+}
+
+async function runAiStarter() {
+  const cat  = document.getElementById('ais-category').value;
+  const type = document.getElementById('ais-type').value;
+  if (!type) { toast('กรุณาเลือกประเภทผลิตภัณฑ์', true); return; }
+
+  const benefits = [...document.querySelectorAll('.ais-benefit:checked')].map(c => c.value);
+  const skin     = document.getElementById('ais-skin').value;
+  const reqs     = document.getElementById('ais-requirements').value.trim();
+
+  const btn = document.getElementById('ais-btn-label');
+  btn.textContent = '⏳ AI กำลังสร้างสูตร...';
+
+  try {
+    const data = await apiFetch('/api/ai/formula-starter', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        product_category: cat, product_type: type,
+        skin_type: skin, benefits, requirements: reqs,
+      }),
+    });
+    _aisResult = data;
+    _renderAisResult(data);
+  } catch(e) {
+    toast(`❌ ${e.message}`, true);
+    btn.textContent = 'สร้างสูตรตั้งต้น';
+  }
+}
+
+function _renderAisResult(d) {
+  document.getElementById('ais-btn-label').textContent = '🔄 สร้างใหม่';
+  document.getElementById('ais-result-title').textContent = d.formula_name || d.product_type;
+  document.getElementById('ai-starter-result').classList.remove('hidden');
+
+  // Claims badges
+  const claims = d.key_claims || [];
+  document.getElementById('ais-claims').innerHTML = claims.map(c =>
+    `<span class="text-[10px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">${c}</span>`
+  ).join('');
+
+  // Phases table
+  const phaseColors = {A:'#3b82f6',B:'#8b5cf6',C:'#f59e0b',D:'#ec4899'};
+  const phasesHtml = (d.phases || []).map(ph => {
+    const c = phaseColors[ph.phase] || '#6b7280';
+    const rows = (ph.ingredients || []).map(ing => `
+      <tr class="border-t border-gray-100">
+        <td class="py-2 pr-3 text-xs font-mono text-slate-700">${ing.inci_name}</td>
+        <td class="py-2 pr-3 text-xs text-gray-500">${ing.trade_name||'—'}</td>
+        <td class="py-2 pr-3 text-xs text-right font-semibold tabular-nums text-slate-800">${ing.percentage}%</td>
+        <td class="py-2 text-xs text-gray-400">${ing.function||''}</td>
+      </tr>`).join('');
+    return `
+      <div class="mb-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-md text-white" style="background:${c}">Phase ${ph.phase}</span>
+          <span class="text-xs text-gray-500">${ph.name||''}</span>
+        </div>
+        <table class="w-full text-left">
+          <thead><tr class="text-[10px] uppercase tracking-wider text-gray-400">
+            <th class="pb-1.5 pr-3">INCI Name</th>
+            <th class="pb-1.5 pr-3">Trade Name</th>
+            <th class="pb-1.5 pr-3 text-right">%</th>
+            <th class="pb-1.5">Function</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  const total = d.total_percentage || 100;
+  document.getElementById('ais-phases').innerHTML = phasesHtml +
+    `<div class="flex justify-end pt-2 border-t border-gray-200">
+      <span class="text-sm font-bold ${Math.abs(total-100)<0.01?'text-emerald-600':'text-amber-500'} tabular-nums">
+        รวม ${total}%
+      </span>
+    </div>`;
+
+  const notes = [d.formulation_notes, d.regulatory_notes].filter(Boolean).join('\n\n');
+  const notesEl = document.getElementById('ais-notes');
+  if (notes) { notesEl.textContent = notes; notesEl.classList.remove('hidden'); }
+  else notesEl.classList.add('hidden');
+}
+
+function loadStarterIntoWorksheet() {
+  if (!_aisResult) return;
+  const d = _aisResult;
+  closeAiStarter();
+  navigate('worksheet');
+
+  setTimeout(() => {
+    // Fill formula metadata
+    const nameEl = document.getElementById('ws-product-name');
+    if (nameEl && !nameEl.value) nameEl.value = d.formula_name || '';
+    const catEl = document.getElementById('ws-product-category');
+    if (catEl) { catEl.value = d.product_type || ''; _updateProductTypes(); }
+
+    // Add ingredient rows with phase info
+    const tbody = document.getElementById('ing-table-body') || document.getElementById('ws-ingredients');
+    if (!tbody) return;
+    const allIngs = (d.phases || []).flatMap(ph =>
+      (ph.ingredients || []).map(ing => ({...ing, phase: ph.phase}))
+    );
+    // Pre-fill notes area
+    const notesEl = document.getElementById('ws-notes');
+    if (notesEl && d.formulation_notes) notesEl.value = d.formulation_notes;
+
+    toast(`✨ โหลด ${allIngs.length} ส่วนผสมจาก AI แล้ว — กรอก % และค้นหาวัตถุดิบในแต่ละแถว`);
+  }, 300);
+}
+
 /* ───────────────────── init ───────────────────── */
 document.addEventListener('DOMContentLoaded', () => navigate('dashboard'));
 </script>
+
+<!-- ═══════ AI Formula Starter Modal ═══════ -->
+<div id="ai-starter-modal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+     style="background:rgba(0,0,0,.45)">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div>
+        <h2 class="text-base font-bold text-slate-800">✨ AI Formula Starter</h2>
+        <p class="text-xs text-gray-500 mt-0.5">ให้ AI สร้างสูตรตั้งต้นพร้อม Phase และ % ส่วนผสม</p>
+      </div>
+      <button onclick="closeAiStarter()" class="text-gray-400 hover:text-gray-600 text-xl font-light leading-none">✕</button>
+    </div>
+
+    <!-- Form -->
+    <div id="ai-starter-form" class="px-6 py-5 space-y-4">
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">หมวดผลิตภัณฑ์ <span class="text-red-400">*</span></label>
+          <select id="ais-category" onchange="_aisUpdateTypes()"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-slate-700
+                   focus:border-emerald-500 focus:outline-none">
+            <option value="">— เลือกหมวด —</option>
+            <option>Skin Care</option><option>Make up</option>
+            <option>Hair care</option><option>Oral Care</option><option>Nail care</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">ประเภทผลิตภัณฑ์ <span class="text-red-400">*</span></label>
+          <select id="ais-type"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-slate-700
+                   focus:border-emerald-500 focus:outline-none">
+            <option value="">— เลือกก่อน —</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">ประเภทผิว</label>
+          <select id="ais-skin"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-slate-700
+                   focus:border-emerald-500 focus:outline-none">
+            <option value="all">ทุกสภาพผิว</option>
+            <option value="normal">ปกติ</option><option value="dry">แห้ง</option>
+            <option value="oily">มัน</option><option value="sensitive">แพ้ง่าย</option>
+            <option value="combination">ผสม</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-2">สรรพคุณหลัก (เลือกได้หลายข้อ)</label>
+        <div class="flex flex-wrap gap-2" id="ais-benefits-group">
+          {['Brightening','Anti-aging','Moisturizing','Soothing','Firming',
+            'Oil Control','Exfoliating','Repairing','UV Protection','Hair Strengthening'].map(b =>
+            `<label class="flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-full
+                           border border-gray-200 text-xs text-slate-600 hover:border-emerald-400
+                           has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-400
+                           has-[:checked]:text-emerald-700 transition-all">
+              <input type="checkbox" value="${b}" class="sr-only ais-benefit"> ${b}
+            </label>`
+          ).join('')}
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1.5">ข้อกำหนดพิเศษจากลูกค้า (ไม่บังคับ)</label>
+        <textarea id="ais-requirements" rows="2" placeholder="เช่น: ต้องการ vegan, หลีกเลี่ยง paraben, ต้องการกลิ่นดอกไม้..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-slate-700
+                 placeholder:text-gray-400 focus:border-emerald-500 focus:outline-none resize-none"></textarea>
+      </div>
+
+      <button onclick="runAiStarter()"
+        class="w-full flex items-center justify-center gap-2 py-3 rounded-xl
+               bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+               m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+               A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+               c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        <span id="ais-btn-label">สร้างสูตรตั้งต้น</span>
+      </button>
+    </div>
+
+    <!-- Result -->
+    <div id="ai-starter-result" class="hidden px-6 pb-6">
+      <div class="border-t border-gray-100 pt-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 id="ais-result-title" class="text-sm font-bold text-slate-800"></h3>
+          <button onclick="loadStarterIntoWorksheet()"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 text-white
+                   text-xs font-semibold hover:bg-slate-700 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            โหลดเข้า Worksheet
+          </button>
+        </div>
+        <div id="ais-claims" class="flex flex-wrap gap-1.5 mb-4"></div>
+        <div id="ais-phases"></div>
+        <div id="ais-notes" class="mt-4 p-3 bg-amber-50 rounded-xl text-xs text-amber-800 leading-relaxed"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </body>
 </html>

@@ -477,6 +477,71 @@ async def trade_to_inci(body: dict):
 
 
 # ------------------------------------------------------------------
+# AI Formula Starter
+# ------------------------------------------------------------------
+
+@app.post('/api/ai/formula-starter')
+async def ai_formula_starter(body: dict):
+    product_category = body.get('product_category', '')
+    product_type     = body.get('product_type', '')
+    skin_type        = body.get('skin_type', 'normal')
+    benefits         = body.get('benefits', [])
+    requirements     = body.get('requirements', '')
+
+    if not product_type:
+        raise HTTPException(400, 'product_type is required')
+    if not GEMINI_KEY:
+        raise HTTPException(503, 'GEMINI_API_KEY not configured')
+
+    skin_th = {'normal':'ปกติ','dry':'แห้ง','oily':'มัน','sensitive':'แพ้ง่าย',
+               'combination':'ผสม','all':'ทุกสภาพผิว'}.get(skin_type, skin_type)
+    benefits_str = ', '.join(benefits) if benefits else 'ทั่วไป'
+
+    prompt = f"""คุณเป็นนักพัฒนาสูตรเครื่องสำอางผู้เชี่ยวชาญตามมาตรฐาน ASEAN Cosmetic Directive
+
+สร้าง Starter Formula สำหรับ:
+- ผลิตภัณฑ์: {product_type} ({product_category})
+- ประเภทผิว: {skin_th}
+- สรรพคุณหลัก: {benefits_str}
+- ข้อกำหนดพิเศษ: {requirements or 'ไม่มี'}
+
+กำหนดให้:
+1. สูตรรวม 100% พอดี
+2. แบ่งเป็น Phase A (water phase), Phase B (oil/emulsifier), Phase C (active/fragrance) ตามความเหมาะสม
+3. ใช้ INCI name จริง เลือกวัตถุดิบที่หาได้ทั่วไปในไทย
+4. % ต้องสมเหตุสมผลตามมาตรฐานอุตสาหกรรม
+5. ระบุ function ของแต่ละสาร
+
+ตอบเป็น JSON เท่านั้น ห้ามมี markdown:
+{{
+  "formula_name": "ชื่อสูตร",
+  "product_type": "{product_type}",
+  "skin_type": "{skin_th}",
+  "key_claims": ["claim1", "claim2"],
+  "phases": [
+    {{
+      "phase": "A",
+      "name": "Water Phase",
+      "ingredients": [
+        {{"inci_name": "AQUA", "trade_name": "Purified Water", "percentage": 70.0, "function": "Solvent", "notes": "ปรับ % ตาม active ที่เพิ่ม"}}
+      ]
+    }}
+  ],
+  "total_percentage": 100.0,
+  "formulation_notes": "คำแนะนำการผลิต",
+  "regulatory_notes": "ข้อควรระวังด้านกฎระเบียบ"
+}}"""
+
+    raw = await _gemini_text(prompt)
+    raw = raw.replace('```json', '').replace('```', '').strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(502, f'AI returned invalid JSON: {raw[:300]}')
+    return data
+
+
+# ------------------------------------------------------------------
 # Trends — Google News RSS + Gemini summary
 # ------------------------------------------------------------------
 

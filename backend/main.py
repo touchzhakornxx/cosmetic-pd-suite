@@ -417,7 +417,7 @@ async def get_scrape(job_id: str):
 # ------------------------------------------------------------------
 
 GEMINI_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 
 async def _gemini_text(prompt: str) -> str:
     """Call Gemini and return raw text."""

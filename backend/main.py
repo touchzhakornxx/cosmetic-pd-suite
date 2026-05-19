@@ -3,7 +3,9 @@ import json
 import multiprocessing
 import os
 import traceback
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import quote as url_quote
 from uuid import uuid4
 from typing import Dict, List, Optional, Set
 
@@ -417,22 +419,26 @@ async def get_scrape(job_id: str):
 GEMINI_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
 
-async def _gemini_trade_to_inci(trade_name: str) -> dict:
-    prompt = (
-        "You are a cosmetic ingredient expert. "
-        "Convert the trade name below to its INCI (International Nomenclature of Cosmetic Ingredients) name.\n\n"
-        f"Trade name: {trade_name}\n\n"
-        "Reply ONLY with valid JSON, no markdown fences:\n"
-        '{"inci_name":"...","confidence":"high|medium|low","notes":"brief reason"}'
-    )
-    async with httpx.AsyncClient(timeout=15) as c:
+async def _gemini_text(prompt: str) -> str:
+    """Call Gemini and return raw text."""
+    async with httpx.AsyncClient(timeout=20) as c:
         r = await c.post(
             f"{GEMINI_URL}?key={GEMINI_KEY}",
             json={"contents": [{"parts": [{"text": prompt}]}]},
         )
     if r.status_code != 200:
         raise HTTPException(502, f"Gemini error {r.status_code}: {r.text[:200]}")
-    raw = r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+    return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+
+async def _gemini_trade_to_inci(trade_name: str) -> dict:
+    prompt = (
+        "You are a cosmetic ingredient expert. "
+        "Convert the trade name below to its INCI name.\n\n"
+        f"Trade name: {trade_name}\n\n"
+        "Reply ONLY with valid JSON, no markdown fences:\n"
+        '{"inci_name":"...","confidence":"high|medium|low","notes":"brief reason"}'
+    )
+    raw = await _gemini_text(prompt)
     raw = raw.replace('```json', '').replace('```', '').strip()
     return json.loads(raw)
 
@@ -462,6 +468,79 @@ async def trade_to_inci(body: dict):
     result = await _gemini_trade_to_inci(trade_name)
     result['source'] = 'ai'
     return result
+
+
+# ------------------------------------------------------------------
+# Trends — Google News RSS + Gemini summary
+# ------------------------------------------------------------------
+
+_NEWS_QUERIES = [
+    ('cosmetic ingredient trends 2025',   'Ingredient Trends'),
+    ('skincare beauty innovation',        'Innovation'),
+    ('cosmetic regulation safety update', 'Regulation'),
+    ('natural organic beauty trends',     'Natural & Organic'),
+]
+
+@app.get('/api/trends/news')
+async def get_trends_news():
+    articles, seen = [], set()
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; newsbot/1.0)'}
+    async with httpx.AsyncClient(timeout=15, headers=headers) as c:
+        for query, category in _NEWS_QUERIES:
+            url = (f"https://news.google.com/rss/search"
+                   f"?q={url_quote(query)}&hl=en&gl=US&ceid=US:en")
+            try:
+                r = await c.get(url)
+                if r.status_code != 200:
+                    continue
+                root = ET.fromstring(r.content)
+                for item in root.findall('.//item')[:5]:
+                    title = item.findtext('title', '').strip()
+                    # Google News appends " - Source" to title — strip it
+                    if ' - ' in title:
+                        title, src_from_title = title.rsplit(' - ', 1)
+                    else:
+                        src_from_title = ''
+                    if title in seen:
+                        continue
+                    seen.add(title)
+                    source_el = item.find('source')
+                    pub = item.findtext('pubDate', '')[:16]
+                    articles.append({
+                        'title':    title.strip(),
+                        'link':     item.findtext('link', ''),
+                        'pubDate':  pub,
+                        'source':   (source_el.text if source_el is not None
+                                     else src_from_title),
+                        'category': category,
+                    })
+            except Exception:
+                continue
+    return articles[:20]
+
+
+@app.post('/api/trends/summary')
+async def get_trends_summary(body: dict):
+    headlines = body.get('headlines', [])
+    if not headlines:
+        raise HTTPException(400, 'headlines required')
+    if not GEMINI_KEY:
+        raise HTTPException(503, 'GEMINI_API_KEY not configured')
+    prompt = (
+        "คุณเป็นผู้เชี่ยวชาญด้านอุตสาหกรรมเครื่องสำอางและการพัฒนาสูตร\n\n"
+        "จากข่าวสารเหล่านี้:\n" +
+        "\n".join(f"• {h}" for h in headlines[:20]) +
+        "\n\nกรุณาวิเคราะห์และสรุปเป็นภาษาไทย โดยแบ่งเป็น 3 หัวข้อดังนี้:\n\n"
+        "**1. เทรนด์หลักที่น่าจับตา**\n"
+        "สรุปเทรนด์ 3-4 ข้อที่สำคัญที่สุดสำหรับนักพัฒนาสูตรเครื่องสำอาง\n\n"
+        "**2. วัตถุดิบ/ส่วนผสมที่กำลังมาแรง**\n"
+        "ระบุชื่อวัตถุดิบหรือส่วนผสมที่ถูกพูดถึง พร้อมเหตุผล\n\n"
+        "**3. ข้อแนะนำเชิงปฏิบัติ**\n"
+        "แนะนำ 2-3 ข้อที่ทีม R&D ควรนำไปพิจารณาในการพัฒนาผลิตภัณฑ์\n\n"
+        "ตอบกระชับ ชัดเจน ใช้ bullet points"
+    )
+    text = await _gemini_text(prompt)
+    return {'summary': text}
 
 
 # ------------------------------------------------------------------

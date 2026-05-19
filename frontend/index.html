@@ -277,6 +277,15 @@
       </svg>
       <span>Data Logs</span>
     </button>
+
+    <button onclick="navigate('trends')" id="nav-trends"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400">
+      <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+      </svg>
+      <span>Trends</span>
+    </button>
   </nav>
 
   <!-- Status -->
@@ -1238,6 +1247,59 @@
       </div><!-- /ls-paper -->
     </div><!-- /view-labsheet -->
 
+    <!-- ═══════════════════════════════════════════════════════
+         TRENDS PAGE
+    ════════════════════════════════════════════════════════ -->
+    <div id="view-trends" class="view hidden space-y-6 mt-6">
+
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold text-slate-800">เทรนด์ตลาดเครื่องสำอาง</h2>
+          <p class="text-xs text-gray-500 mt-0.5">ดึงข้อมูลจาก Google News · วิเคราะห์โดย Gemini AI</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="loadTrendsNews()"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            โหลดข่าว
+          </button>
+          <button onclick="loadTrendsSummary()"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3
+                   m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547
+                   A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531
+                   c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            ✨ สรุปด้วย AI
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Summary Card -->
+      <div id="trends-summary-card" class="hidden lt-card p-6">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">✨</span>
+          <h3 class="text-sm font-semibold text-slate-800">AI Market Analysis</h3>
+          <span class="text-[10px] text-gray-400 ml-auto" id="trends-summary-time"></span>
+        </div>
+        <div id="trends-summary-body" class="text-sm text-slate-700 leading-relaxed space-y-2"></div>
+      </div>
+
+      <!-- News Grid -->
+      <div id="trends-news-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- placeholder -->
+        <div class="lt-card p-6 col-span-full text-center text-gray-400 text-sm py-16">
+          กด <strong>โหลดข่าว</strong> เพื่อดึงข่าวสารล่าสุดจากอุตสาหกรรมเครื่องสำอางทั่วโลก
+        </div>
+      </div>
+
+    </div><!-- /view-trends -->
+
   </div><!-- /content-scroll -->
 </div><!-- /main -->
 
@@ -1366,6 +1428,7 @@ const PAGE_META = {
   'formula-detail': ['รายละเอียดสูตร',  'ดูส่วนผสมและน้ำหนักต่อ Batch'],
   labsheet:         ['Lab Sheet',        'สูตรผลิต — พิมพ์ใบสั่งผลิต'],
   scrapes:          ['ผลการดึงข้อมูล',   'ดึงข้อมูล INCI จากซัพพลายเออร์'],
+  trends:           ['เทรนด์ตลาด',       'ข่าวสารและแนวโน้มอุตสาหกรรมเครื่องสำอาง'],
 };
 
 // Subtitle shown in the shared hero banner per page
@@ -1377,7 +1440,86 @@ const _HERO_SUBS = {
   worksheet:        'New Formula Worksheet — Design & Compliance Check',
   'formula-detail': 'Formula Details & Analysis',
   labsheet:         'Lab Sheet & Manufacturing Report',
+  trends:           'Market Trends & Industry News · Powered by AI',
 };
+
+// ── Trends ───────────────────────────────────────────────────────────
+let _trendsArticles = [];
+
+const _CATEGORY_COLOR = {
+  'Ingredient Trends': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Innovation':        'bg-purple-50 text-purple-700 border-purple-200',
+  'Regulation':        'bg-red-50 text-red-700 border-red-200',
+  'Natural & Organic': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
+async function loadTrendsNews() {
+  const grid = document.getElementById('trends-news-grid');
+  grid.innerHTML = `<div class="col-span-full flex justify-center py-16">
+    <div class="text-gray-400 text-sm">⏳ กำลังดึงข่าว...</div></div>`;
+  try {
+    const res = await apiFetch('/api/trends/news');
+    _trendsArticles = await res.json();
+    if (!_trendsArticles.length) {
+      grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10">ไม่พบข่าว</div>';
+      return;
+    }
+    grid.innerHTML = _trendsArticles.map(a => {
+      const cc = _CATEGORY_COLOR[a.category] || 'bg-gray-50 text-gray-600 border-gray-200';
+      const date = a.pubDate ? a.pubDate.replace(/,.*/, '').trim() : '';
+      return `
+        <a href="${_safeHtml(a.link)}" target="_blank" rel="noopener"
+           class="lt-card p-5 flex flex-col gap-3 hover:shadow-md transition-shadow cursor-pointer no-underline">
+          <div class="flex items-start justify-between gap-2">
+            <span class="inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cc}">
+              ${_safeHtml(a.category)}
+            </span>
+            <span class="text-[10px] text-gray-400 flex-shrink-0">${_safeHtml(date)}</span>
+          </div>
+          <p class="text-sm font-medium text-slate-800 leading-snug line-clamp-3">${_safeHtml(a.title)}</p>
+          <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
+            <span class="text-[11px] text-gray-500 truncate">${_safeHtml(a.source || '')}</span>
+            <span class="text-[11px] text-emerald-600 font-medium flex-shrink-0">อ่านต่อ →</span>
+          </div>
+        </a>`;
+    }).join('');
+    toast(`โหลด ${_trendsArticles.length} ข่าวเรียบร้อย`);
+  } catch(e) {
+    grid.innerHTML = `<div class="col-span-full text-center text-red-400 py-10">❌ ${e.message}</div>`;
+  }
+}
+
+async function loadTrendsSummary() {
+  if (!_trendsArticles.length) {
+    toast('กรุณาโหลดข่าวก่อน'); return;
+  }
+  const card   = document.getElementById('trends-summary-card');
+  const body   = document.getElementById('trends-summary-body');
+  const timeEl = document.getElementById('trends-summary-time');
+  card.classList.remove('hidden');
+  body.innerHTML = '<div class="text-gray-400">⏳ AI กำลังวิเคราะห์...</div>';
+  try {
+    const headlines = _trendsArticles.map(a => a.title);
+    const res  = await apiFetch('/api/trends/summary', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({headlines}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'error');
+    // Render markdown-ish text
+    const html = data.summary
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^•\s/gm, '<br>• ')
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>');
+    body.innerHTML = html;
+    timeEl.textContent = new Date().toLocaleTimeString('th-TH');
+    card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  } catch(e) {
+    body.innerHTML = `<span class="text-red-400">❌ ${e.message}</span>`;
+  }
+}
 
 async function _aiLookupInci(rowId, tradeName, btn) {
   const dd = document.getElementById(`mat-dd-${rowId}`);
@@ -1490,6 +1632,7 @@ async function loadPage(p) {
   const map = {
     dashboard: loadDashboard, materials: loadMaterials,
     formulas: loadFormulas,   scrapes: loadScrapes,
+    trends: loadTrendsNews,
     worksheet: loadWorksheet, 'formula-detail': loadFormulaDetail,
     labsheet: loadLabSheet,
   };

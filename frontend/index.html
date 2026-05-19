@@ -1413,8 +1413,8 @@ function toast(msg, err = false) {
 /* ───────────────────── api ───────────────────── */
 const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
 
-async function apiFetch(path) {
-  const r = await fetch(API_BASE + path);
+async function apiFetch(path, options) {
+  const r = await fetch(API_BASE + path, options);
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
   return r.json();
 }
@@ -1458,8 +1458,7 @@ async function loadTrendsNews() {
   grid.innerHTML = `<div class="col-span-full flex justify-center py-16">
     <div class="text-gray-400 text-sm">⏳ กำลังดึงข่าว...</div></div>`;
   try {
-    const res = await apiFetch('/api/trends/news');
-    _trendsArticles = await res.json();
+    _trendsArticles = await apiFetch('/api/trends/news');
     if (!_trendsArticles.length) {
       grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-10">ไม่พบข่าว</div>';
       return;
@@ -1500,13 +1499,11 @@ async function loadTrendsSummary() {
   body.innerHTML = '<div class="text-gray-400">⏳ AI กำลังวิเคราะห์...</div>';
   try {
     const headlines = _trendsArticles.map(a => a.title);
-    const res  = await apiFetch('/api/trends/summary', {
+    const data = await apiFetch('/api/trends/summary', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({headlines}),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'error');
     // Render markdown-ish text
     const html = data.summary
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -1526,13 +1523,11 @@ async function _aiLookupInci(rowId, tradeName, btn) {
   btn.textContent = '⏳ กำลังค้นหา...';
   btn.disabled = true;
   try {
-    const res = await apiFetch('/api/ai/trade-to-inci', {
+    const data = await apiFetch('/api/ai/trade-to-inci', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trade_name: tradeName }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'error');
     const src = data.source === 'db' ? '📦' : '✨ AI';
     dd.innerHTML = `
       <div class="px-3 py-2.5">
@@ -1579,13 +1574,11 @@ async function aiTradeToInci(tradeInputId, inciInputId, statusId) {
   statusEl.classList.add('text-emerald-600');
 
   try {
-    const res = await apiFetch('/api/ai/trade-to-inci', {
+    const data = await apiFetch('/api/ai/trade-to-inci', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trade_name: tradeName }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'AI error');
 
     inciInput.value = data.inci_name;
     const src = data.source === 'db' ? '📦 จาก Database' : '✨ จาก AI';

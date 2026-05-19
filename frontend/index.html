@@ -178,6 +178,19 @@
     }
     .lt-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
 
+    /* ── AI Starter benefit chips ───────────────────────────────────── */
+    .ais-benefit-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; cursor: pointer;
+      border: 1px solid #e2e8f0; font-size: .75rem; color: #475569;
+      transition: all .15s ease; user-select: none;
+    }
+    .ais-benefit-label:hover { border-color: #059669; color: #059669; }
+    .ais-benefit-label:has(input:checked) {
+      background: #ecfdf5; border-color: #059669; color: #059669; font-weight: 600;
+    }
+    .ais-benefit-label input { width: 0; height: 0; opacity: 0; position: absolute; }
+
     /* ── Mobile sidebar drawer ──────────────────────────────────────── */
     @media (max-width: 767px) {
       #sidebar {
@@ -3635,15 +3648,16 @@ document.addEventListener('DOMContentLoaded', () => navigate('dashboard'));
       <div>
         <label class="block text-xs font-medium text-gray-600 mb-2">สรรพคุณหลัก (เลือกได้หลายข้อ)</label>
         <div class="flex flex-wrap gap-2" id="ais-benefits-group">
-          {['Brightening','Anti-aging','Moisturizing','Soothing','Firming',
-            'Oil Control','Exfoliating','Repairing','UV Protection','Hair Strengthening'].map(b =>
-            `<label class="flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-full
-                           border border-gray-200 text-xs text-slate-600 hover:border-emerald-400
-                           has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-400
-                           has-[:checked]:text-emerald-700 transition-all">
-              <input type="checkbox" value="${b}" class="sr-only ais-benefit"> ${b}
-            </label>`
-          ).join('')}
+          <label class="ais-benefit-label"><input type="checkbox" value="Brightening" class="ais-benefit"> Brightening</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Anti-aging" class="ais-benefit"> Anti-aging</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Moisturizing" class="ais-benefit"> Moisturizing</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Soothing" class="ais-benefit"> Soothing</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Firming" class="ais-benefit"> Firming</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Oil Control" class="ais-benefit"> Oil Control</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Exfoliating" class="ais-benefit"> Exfoliating</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Repairing" class="ais-benefit"> Repairing</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="UV Protection" class="ais-benefit"> UV Protection</label>
+          <label class="ais-benefit-label"><input type="checkbox" value="Hair Strengthening" class="ais-benefit"> Hair Strengthening</label>
         </div>
       </div>
 

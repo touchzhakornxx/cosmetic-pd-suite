@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+playwright
+pydantic
+httpx
+python-dotenv
+psycopg2-binary
+aiofiles

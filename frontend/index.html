@@ -1,0 +1,3010 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P&D Intelligence Suite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark:    '#f1f5f9',   // slate-100  — page bg
+            card:    '#ffffff',   // white      — card bg
+            cardHov: '#f8fafc',   // slate-50   — hover
+            border:  '#e2e8f0',   // slate-200  — borders
+            green:   '#059669',   // emerald-600 — readable on white
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e2235; border-radius: 99px; }
+
+    .nav-item {
+      transition: all .15s ease;
+      border-left: 3px solid transparent;
+    }
+    .nav-item.active {
+      border-left-color: #00e676;
+      background: rgba(0,230,118,.07);
+      color: #00e676;
+    }
+    .nav-item:not(.active):hover { background: rgba(255,255,255,.04); color: #fff; }
+
+    .view { animation: fadeUp .2s ease both; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+
+    .card-hover { transition: transform .15s ease, border-color .15s ease; }
+    .card-hover:hover { transform: translateY(-2px); border-color: #2a304a !important; }
+
+    .skeleton {
+      background: linear-gradient(90deg, #131520 25%, #1c2030 50%, #131520 75%);
+      background-size: 300% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: 12px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 999px; font-size: .7rem;
+      border: 1px solid rgba(0,230,118,.18);
+      background: rgba(0,230,118,.06);
+      color: #c8f5e0;
+    }
+    .chip .pct { color: #00e676; font-weight: 600; }
+
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 9px; border-radius: 999px; font-size: .7rem; font-weight: 500;
+    }
+
+    .stat-glow { box-shadow: 0 0 40px -10px var(--glow); }
+
+    .table-row { transition: background .1s; }
+    .table-row:hover { background: #181b2a; }
+
+    .pulse-dot { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+    @keyframes pulse {
+      0%,100% { opacity:1; }
+      50%      { opacity:.3; }
+    }
+
+    select { color-scheme: dark; }
+    select option { background: #131520; color: #e5e7eb; }
+
+    /* ── Material combobox dropdown ───────────────────────── */
+    .mat-dd-item { transition: background .08s; }
+    .mat-dd-item:hover,
+    .mat-dd-item.mat-dd-active {
+      background: rgba(255,255,255,.05);
+    }
+    .mat-dd-item.mat-dd-active { border-left: 2px solid #00e676; padding-left: calc(.75rem - 2px); }
+    .mat-dd::-webkit-scrollbar { width: 4px; }
+    .mat-dd::-webkit-scrollbar-thumb { background: #1e2235; border-radius: 4px; }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ══ Global light theme ════════════════════════════════════════════
+       Tailwind config maps bg-dark/card/cardHov/border to light values.
+       This block handles text colours and elements the config can't reach.
+    ════════════════════════════════════════════════════════════════════ */
+
+    /* text-white → slate-800 everywhere on the light bg */
+    .text-white { color: #1e293b !important; }
+
+    /* text-gray-300 was designed for dark cards; bump it up on white */
+    .text-gray-300 { color: #64748b !important; }
+
+    /* Skeleton — globally light (replaces old dark shimmer) */
+    .skeleton {
+      background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%) !important;
+      background-size: 300% 100% !important;
+    }
+
+    /* Sidebar → white */
+    aside { background: #ffffff !important; border-right-color: #e2e8f0 !important; }
+
+    /* Inputs / selects / textareas → white + light border */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select, textarea {
+      background-color: #ffffff !important;
+      color: #1e293b !important;
+      border-color: #e2e8f0 !important;
+    }
+    input::placeholder, textarea::placeholder { color: #94a3b8 !important; }
+    select { color-scheme: light !important; }
+    select option { background: #ffffff; color: #1e293b; }
+
+    /* Nav active/hover with new green */
+    .nav-item.active {
+      border-left-color: #059669 !important;
+      background: rgba(5,150,105,.08) !important;
+      color: #059669 !important;
+    }
+    .nav-item:not(.active):hover {
+      background: rgba(15,23,42,.04) !important;
+      color: #1e293b !important;
+    }
+
+    /* Chip / badge colours on light bg */
+    .chip {
+      border-color: rgba(5,150,105,.22) !important;
+      background: rgba(5,150,105,.07) !important;
+      color: #1e293b !important;
+    }
+    .chip .pct { color: #059669 !important; }
+
+    /* table row hover */
+    .table-row:hover { background: #f8fafc !important; }
+
+    /* pulse dot on light bg */
+    .pulse-dot { background-color: #059669 !important; }
+
+    /* Header hidden — hero banner serves as page header globally */
+    #top-header { display: none !important; }
+
+
+
+    /* ── Card elevation helper ───────────────────────────────────────── */
+    .lt-card {
+      background: #fff;
+      border-radius: 1rem;
+      border: 1px solid #e9edf2;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06), 0 0 0 0 transparent;
+      transition: box-shadow .15s ease;
+    }
+    .lt-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.09); }
+
+    /* ── Print styles ─────────────────────────────────────── */
+    @media print {
+      @page { margin: 15mm; }
+      body {
+        background: white !important; color: black !important;
+        overflow: visible !important; height: auto !important; display: block !important;
+      }
+      aside, header, #toast, .print-hidden { display: none !important; }
+      body > div:not(aside) { overflow: visible !important; display: block !important; height: auto !important; }
+      #content-scroll { overflow: visible !important; padding: 0 !important; flex: none !important; }
+      #content-scroll > div { display: none !important; }
+      #view-labsheet { display: block !important; animation: none !important; }
+      #ls-paper { box-shadow: none !important; border-color: #ccc !important; border-radius: 0 !important; }
+      #ls-procedure { border: 1px solid #ccc !important; background: #fafafa !important; resize: none !important; }
+    }
+  </style>
+</head>
+
+<body class="bg-dark text-slate-800 h-full flex overflow-hidden">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SIDEBAR
+════════════════════════════════════════════════════════════════ -->
+<aside class="flex-shrink-0 w-56 h-screen bg-card border-r border-border flex flex-col overflow-hidden">
+
+  <!-- Logo -->
+  <div class="px-5 py-5 border-b border-border flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-green flex items-center justify-center flex-shrink-0">
+      <!-- beaker icon -->
+      <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0
+          01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5
+          c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009
+          10.172V5L8 4z"/>
+      </svg>
+    </div>
+    <div>
+      <p class="text-sm font-bold leading-none text-white">P&amp;D Suite</p>
+      <p class="text-[10px] text-gray-500 mt-0.5">Cosmetic Intelligence</p>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+    <button onclick="navigate('dashboard')" id="nav-dashboard"
+      class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300">
+      <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      <span>Overview</span>
+    </button>
+
+    <button onclick="navigate('materials')" id="nav-materials"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400">
+      <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
+      </svg>
+      <span>Raw Materials</span>
+    </button>
+
+    <button onclick="navigate('formulas')" id="nav-formulas"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400">
+      <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2
+             M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      <span>Formulas</span>
+    </button>
+
+    <button onclick="navigate('scrapes')" id="nav-scrapes"
+      class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400">
+      <svg class="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      <span>Data Logs</span>
+    </button>
+  </nav>
+
+  <!-- Status -->
+  <div class="px-4 py-4 border-t border-border">
+    <div class="flex items-center gap-2">
+      <span id="conn-dot" class="w-2 h-2 rounded-full bg-gray-600"></span>
+      <span id="conn-label" class="text-[11px] text-gray-500">กำลังเชื่อมต่อ...</span>
+    </div>
+  </div>
+</aside>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col overflow-hidden">
+
+  <!-- Top bar -->
+  <header id="top-header"
+          class="flex-shrink-0 flex items-center justify-between px-8 py-4
+                 bg-dark/90 backdrop-blur border-b border-border z-10
+                 transition-colors duration-150">
+    <div>
+      <h2 id="page-title" class="text-base font-semibold text-white leading-none">ภาพรวม</h2>
+      <p id="page-sub"   class="text-xs text-gray-500 mt-1">Cosmetic P&amp;D Intelligence Suite</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="refreshCurrent()"
+        id="refresh-btn"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+               text-gray-400 hover:text-slate-900 border border-border hover:border-slate-300
+               hover:bg-cardHov transition-all">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9
+               m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        รีเฟรช
+      </button>
+    </div>
+  </header>
+
+  <!-- Scrollable content -->
+  <div id="content-scroll" class="flex-1 overflow-y-auto p-8">
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         Shared Hero Banner — visible on EVERY page.
+         navigate() updates #hero-sub to reflect the current section.
+    ════════════════════════════════════════════════════════════════════ -->
+    <!-- ── Hero Banner ───────────────────────────────────────────────── -->
+    <div class="rounded-3xl overflow-hidden relative"
+         style="min-height:220px;background:#ffffff;
+                box-shadow:0 2px 12px rgba(0,0,0,.08)"
+         id="hero-banner">
+
+        <!-- ══ Abstract wave + diamond background (inline SVG, no external file) ══
+             Faithfully recreates the reference image:
+             • White base  • Two sweeping lime-green ribbon waves (texture lines)
+             • 46 rotated diamond shapes fading left→right in size and opacity
+        ══════════════════════════════════════════════════════════════════════ -->
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="absolute inset-0 w-full h-full pointer-events-none"
+             viewBox="0 0 1200 280"
+             preserveAspectRatio="xMidYMid slice"
+             aria-hidden="true">
+
+          <!-- White base -->
+          <rect width="1200" height="280" fill="#ffffff"/>
+
+          <!-- ── Secondary (upper) wave ribbon ── -->
+          <path d="M0 110 C200 95 380 20 560 22 C740 24 900 65 1200 140
+                   L1200 175 C900 100 740 59 560 57 C380 55 200 130 0 145 Z"
+                fill="#8bc34a" opacity="0.09"/>
+          <path d="M0 110 C200 95 380 20 560 22 C740 24 900 65 1200 140"  fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.07"/>
+          <path d="M0 115 C200 100 380 25 560 27 C740 29 900 70 1200 145" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.07"/>
+          <path d="M0 120 C200 105 380 30 560 32 C740 34 900 75 1200 150" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.06"/>
+          <path d="M0 125 C200 110 380 35 560 37 C740 39 900 80 1200 155" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.06"/>
+          <path d="M0 130 C200 115 380 40 560 42 C740 44 900 85 1200 160" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.06"/>
+          <path d="M0 135 C200 120 380 45 560 47 C740 49 900 90 1200 165" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.05"/>
+          <path d="M0 140 C200 125 380 50 560 52 C740 54 900 95 1200 170" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.05"/>
+          <path d="M0 145 C200 130 380 55 560 57 C740 59 900 100 1200 175" fill="none" stroke="#8bc34a" stroke-width="1" opacity="0.05"/>
+
+          <!-- ── Primary (main) wave ribbon ── -->
+          <path d="M0 150 C200 138 390 55 600 58 C810 61 960 105 1200 185
+                   L1200 245 C960 165 810 121 600 118 C390 115 200 198 0 210 Z"
+                fill="#8bc34a" opacity="0.11"/>
+          <path d="M0 150 C200 138 390 55 600 58 C810 61 960 105 1200 185" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.08"/>
+          <path d="M0 154 C200 142 390 59 600 62 C810 65 960 109 1200 189" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.08"/>
+          <path d="M0 158 C200 146 390 63 600 66 C810 69 960 113 1200 193" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.07"/>
+          <path d="M0 162 C200 150 390 67 600 70 C810 73 960 117 1200 197" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.07"/>
+          <path d="M0 166 C200 154 390 71 600 74 C810 77 960 121 1200 201" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.07"/>
+          <path d="M0 170 C200 158 390 75 600 78 C810 81 960 125 1200 205" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.06"/>
+          <path d="M0 174 C200 162 390 79 600 82 C810 85 960 129 1200 209" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.06"/>
+          <path d="M0 178 C200 166 390 83 600 86 C810 89 960 133 1200 213" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.06"/>
+          <path d="M0 182 C200 170 390 87 600 90 C810 93 960 137 1200 217" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.06"/>
+          <path d="M0 186 C200 174 390 91 600 94 C810 97 960 141 1200 221" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 190 C200 178 390 95 600 98 C810 101 960 145 1200 225" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 194 C200 182 390 99 600 102 C810 105 960 149 1200 229" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 198 C200 186 390 103 600 106 C810 109 960 153 1200 233" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 202 C200 190 390 107 600 110 C810 113 960 157 1200 237" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 206 C200 194 390 111 600 114 C810 117 960 161 1200 241" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+          <path d="M0 210 C200 198 390 115 600 118 C810 121 960 165 1200 245" fill="none" stroke="#8bc34a" stroke-width="1.2" opacity="0.05"/>
+
+          <!-- ── Diamonds (rotated squares) — 46 shapes, fading left→right ──
+               Using <polygon points="cx,cy-s cx+s,cy cx,cy+s cx-s,cy">
+               s = half-size. Opacity and size both decrease toward right edge.
+          ── -->
+          <!-- Far left — large, 0.68-0.92 -->
+          <polygon points="50,-7 77,20 50,47 23,20"   fill="#8bc34a" opacity="0.88"/>
+          <polygon points="30,52 68,90 30,128 -8,90"  fill="#8bc34a" opacity="0.92"/>
+          <polygon points="75,117 108,150 75,183 42,150" fill="#8bc34a" opacity="0.86"/>
+          <polygon points="115,23 142,50 115,77 88,50"  fill="#8bc34a" opacity="0.83"/>
+          <polygon points="50,191 79,220 50,249 21,220" fill="#8bc34a" opacity="0.78"/>
+          <polygon points="145,166 169,190 145,214 121,190" fill="#8bc34a" opacity="0.76"/>
+          <polygon points="175,78 197,100 175,122 153,100" fill="#8bc34a" opacity="0.75"/>
+          <polygon points="210,6 229,25 210,44 191,25"   fill="#8bc34a" opacity="0.72"/>
+          <polygon points="200,241 219,260 200,279 181,260" fill="#8bc34a" opacity="0.68"/>
+          <!-- Left-centre — medium, 0.44-0.65 -->
+          <polygon points="250,41 274,65 250,89 226,65"   fill="#8bc34a" opacity="0.65"/>
+          <polygon points="275,143 296,164 275,185 254,164" fill="#8bc34a" opacity="0.63"/>
+          <polygon points="310,213 327,230 310,247 293,230" fill="#8bc34a" opacity="0.54"/>
+          <polygon points="345,13 362,30 345,47 328,30"   fill="#8bc34a" opacity="0.59"/>
+          <polygon points="375,81 389,95 375,109 361,95"  fill="#8bc34a" opacity="0.54"/>
+          <polygon points="390,173 402,185 390,197 378,185" fill="#8bc34a" opacity="0.49"/>
+          <polygon points="420,228 430,238 420,248 410,238" fill="#8bc34a" opacity="0.44"/>
+          <!-- Centre — smaller, 0.29-0.43 -->
+          <polygon points="445,34 461,50 445,66 429,50"   fill="#8bc34a" opacity="0.43"/>
+          <polygon points="475,131 489,145 475,159 461,145" fill="#8bc34a" opacity="0.39"/>
+          <polygon points="510,214 521,225 510,236 499,225" fill="#8bc34a" opacity="0.34"/>
+          <polygon points="546,63 558,75 546,87 534,75"   fill="#8bc34a" opacity="0.41"/>
+          <polygon points="570,160 580,170 570,180 560,170" fill="#8bc34a" opacity="0.34"/>
+          <polygon points="601,225 610,234 601,243 592,234" fill="#8bc34a" opacity="0.29"/>
+          <polygon points="635,29 646,40 635,51 624,40"   fill="#8bc34a" opacity="0.37"/>
+          <!-- Right-centre — small, 0.17-0.29 -->
+          <polygon points="665,95 675,105 665,115 655,105" fill="#8bc34a" opacity="0.29"/>
+          <polygon points="690,192 698,200 690,208 682,200" fill="#8bc34a" opacity="0.25"/>
+          <polygon points="720,44 731,55 720,66 709,55"   fill="#8bc34a" opacity="0.29"/>
+          <polygon points="746,143 754,151 746,159 738,151" fill="#8bc34a" opacity="0.23"/>
+          <polygon points="770,233 777,240 770,247 763,240" fill="#8bc34a" opacity="0.20"/>
+          <polygon points="810,15 820,25 810,35 800,25"   fill="#8bc34a" opacity="0.23"/>
+          <polygon points="835,77 843,85 835,93 827,85"   fill="#8bc34a" opacity="0.19"/>
+          <polygon points="861,154 867,160 861,166 855,160" fill="#8bc34a" opacity="0.17"/>
+          <polygon points="885,225 890,230 885,235 880,230" fill="#8bc34a" opacity="0.14"/>
+          <!-- Right — tiny, 0.11-0.19 -->
+          <polygon points="921,37 930,46 921,55 912,46"   fill="#8bc34a" opacity="0.19"/>
+          <polygon points="946,114 953,121 946,128 939,121" fill="#8bc34a" opacity="0.16"/>
+          <polygon points="970,193 976,199 970,205 964,199" fill="#8bc34a" opacity="0.13"/>
+          <polygon points="1005,53 1012,60 1005,67 998,60"  fill="#8bc34a" opacity="0.17"/>
+          <polygon points="1029,138 1035,144 1029,150 1023,144" fill="#8bc34a" opacity="0.14"/>
+          <polygon points="1053,213 1058,218 1053,223 1048,218" fill="#8bc34a" opacity="0.11"/>
+          <polygon points="1082,22 1090,30 1082,38 1074,30"  fill="#8bc34a" opacity="0.17"/>
+          <polygon points="1104,103 1110,109 1104,115 1098,109" fill="#8bc34a" opacity="0.13"/>
+          <polygon points="1123,183 1128,188 1123,193 1118,188" fill="#8bc34a" opacity="0.11"/>
+          <!-- Far right — barely visible, 0.08-0.14 -->
+          <polygon points="1147,43 1156,52 1147,61 1138,52"  fill="#8bc34a" opacity="0.14"/>
+          <polygon points="1165,130 1172,137 1165,144 1158,137" fill="#8bc34a" opacity="0.11"/>
+          <polygon points="1184,212 1190,218 1184,224 1178,218" fill="#8bc34a" opacity="0.09"/>
+          <polygon points="1193,11 1200,18 1193,25 1186,18"  fill="#8bc34a" opacity="0.13"/>
+          <polygon points="1197,255 1202,260 1197,265 1192,260" fill="#8bc34a" opacity="0.08"/>
+        </svg>
+
+        <!-- ── Centred text (dark green on white) ────────────────────── -->
+        <div class="relative flex flex-col items-center justify-center
+                    text-center px-10 py-14 select-none">
+
+          <!-- Accent rule + badge -->
+          <div class="flex items-center gap-4 mb-6">
+            <span class="h-px w-12" style="background:rgba(91,160,27,0.45)"></span>
+            <span class="text-[10px] font-bold uppercase tracking-[.30em]"
+                  style="color:#5ba01b">Enterprise Platform</span>
+            <span class="h-px w-12" style="background:rgba(91,160,27,0.45)"></span>
+          </div>
+
+          <!-- Two-weight title in dark forest green -->
+          <h1 class="leading-none">
+            <span class="block font-bold uppercase"
+                  style="font-size:3.1rem;letter-spacing:.13em;color:#1a3a0e">Cosmetic</span>
+            <span class="block font-light uppercase"
+                  style="font-size:3.1rem;letter-spacing:.13em;color:#2d5c1a;margin-top:.15rem">
+              Intelligence
+            </span>
+          </h1>
+
+          <!-- Tagline -->
+          <p class="mt-4 uppercase font-medium tracking-[.20em]"
+             style="font-size:.72rem;color:rgba(74,122,46,0.70)">
+            Artisanal Solutions &nbsp;&bull;&nbsp; Global Insights
+          </p>
+
+          <span id="hero-sub" class="sr-only"></span>
+        </div>
+
+        <!-- ── Top-right: refresh + signature ────────────────────────── -->
+        <div class="absolute top-4 right-5 flex flex-col items-end gap-2">
+          <button onclick="refreshCurrent()"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                   font-medium transition-all"
+            style="color:#5ba01b;border:1px solid rgba(91,160,27,0.30);background:transparent"
+            onmouseover="this.style.background='rgba(91,160,27,0.07)'"
+            onmouseout="this.style.background='transparent'">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor"
+                 stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9
+                   m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh
+          </button>
+          <p class="text-[10px] italic" style="color:rgba(74,122,46,0.45);font-style:italic">
+            by Tachagon
+          </p>
+        </div>
+    </div>
+    <!-- /Hero Banner -->
+
+    <!-- ─── DASHBOARD ───────────────────────────────────────────────── -->
+    <div id="view-dashboard" class="view space-y-6 mt-6">
+
+      <!-- ── Metric Cards ────────────────────────────────────────────── -->
+      <div id="metric-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="skeleton h-36 rounded-2xl"></div>
+        <div class="skeleton h-36 rounded-2xl"></div>
+        <div class="skeleton h-36 rounded-2xl"></div>
+      </div>
+
+      <!-- ── Regulatory Quick Alert ─────────────────────────────────── -->
+      <div class="lt-card overflow-hidden">
+
+        <!-- Card header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                 style="background:#fef3c7;border:1px solid #fde68a">
+              <svg style="color:#d97706;width:18px;height:18px" fill="none"
+                   stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71
+                     3.86a2 2 0 00-3.42 0z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900 leading-tight">Regulatory Quick Alert</h3>
+              <p class="text-[11px] text-gray-500 mt-0.5">ASEAN Cosmetic Directive · EU 1223/2009</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="reg-total-badge" class="badge text-[11px]"
+                  style="background:#fef3c7;color:#92400e">กำลังโหลด…</span>
+            <button id="reg-rescan-btn" onclick="_rescanRegulatory()" title="Re-scan"
+              class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
+              style="background:#f1f5f9;border:1px solid #e2e8f0">
+              <svg id="reg-rescan-icon" width="13" height="13" fill="none" stroke="#94a3b8"
+                   stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0
+                     0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Counters -->
+        <div class="grid grid-cols-3 divide-x divide-gray-100">
+
+          <!-- Red -->
+          <div class="px-6 py-5 text-center" style="background:#fef2f2">
+            <div class="flex items-center justify-center gap-1.5 mb-2">
+              <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span>
+              <span class="text-[11px] font-semibold text-red-600 uppercase tracking-wider">สารต้องห้าม</span>
+            </div>
+            <div id="reg-cnt-banned" class="text-4xl font-bold tabular-nums text-red-600 leading-none mb-1">
+              <span class="skeleton inline-block w-8 h-9 rounded"></span>
+            </div>
+            <p class="text-[10px] text-gray-500">Prohibited (Annex II)</p>
+          </div>
+
+          <!-- Amber -->
+          <div class="px-6 py-5 text-center" style="background:#fffbeb">
+            <div class="flex items-center justify-center gap-1.5 mb-2">
+              <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+              <span class="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">สารควบคุม</span>
+            </div>
+            <div id="reg-cnt-restricted" class="text-4xl font-bold tabular-nums text-amber-600 leading-none mb-1">
+              <span class="skeleton inline-block w-8 h-9 rounded"></span>
+            </div>
+            <p class="text-[10px] text-gray-500">Restricted (Annex III)</p>
+          </div>
+
+          <!-- Blue -->
+          <div class="px-6 py-5 text-center" style="background:#eff6ff">
+            <div class="flex items-center justify-center gap-1.5 mb-2">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>
+              <span class="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">ต้องระบุคำเตือน</span>
+            </div>
+            <div id="reg-cnt-warning" class="text-4xl font-bold tabular-nums text-blue-600 leading-none mb-1">
+              <span class="skeleton inline-block w-8 h-9 rounded"></span>
+            </div>
+            <p class="text-[10px] text-gray-500">Label Warning Required</p>
+          </div>
+
+        </div>
+
+        <!-- Formula violation bar -->
+        <div id="reg-formula-bar" class="px-6 py-3 border-t border-gray-100 flex items-center gap-4">
+          <div class="skeleton h-4 w-64 rounded"></div>
+        </div>
+
+        <!-- Violation detail table (hidden when clean) -->
+        <div id="reg-violation-table" class="hidden border-t border-gray-100">
+          <div class="px-6 py-2 bg-gray-50">
+            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+              รายการสารที่มีปัญหาในสูตรที่บันทึกไว้
+            </p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[11px]">
+              <thead>
+                <tr class="border-b border-gray-100">
+                  <th class="px-4 py-2 text-left text-gray-500 font-medium">Formula</th>
+                  <th class="px-4 py-2 text-left text-gray-500 font-medium">Ingredient (INCI)</th>
+                  <th class="px-4 py-2 text-right text-gray-500 font-medium">Used%</th>
+                  <th class="px-4 py-2 text-right text-gray-500 font-medium">Max%</th>
+                  <th class="px-4 py-2 text-left text-gray-500 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody id="reg-violation-rows"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+          <p class="text-[10px] text-gray-400">
+            อ้างอิง: ACD Annex II, III, VI, VII · EU 1223/2009 · อย. ประกาศ 2562
+            <span id="reg-source-tag" class="ml-2"></span>
+          </p>
+          <button onclick="navigate('worksheet')"
+            class="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+            สร้างสูตรใหม่ &rarr;
+          </button>
+        </div>
+      </div>
+      <!-- /Regulatory Quick Alert -->
+
+      <!-- ── Bottom split 50/50 ─────────────────────────────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- LEFT: Category Breakdown ──────────────────────────────────── -->
+        <div class="lt-card overflow-hidden flex flex-col">
+
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                   style="background:#dbeafe;border:1px solid #bfdbfe">
+                <svg width="15" height="15" fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900">Category Breakdown</h3>
+                <p class="text-[10px] text-gray-400 mt-0.5">สัดส่วนวัตถุดิบตามฟังก์ชัน</p>
+              </div>
+            </div>
+            <span id="breakdown-total-badge" class="badge text-[10px]"
+                  style="background:#dbeafe;color:#1d4ed8">กำลังโหลด…</span>
+          </div>
+
+          <div class="flex flex-col md:flex-row items-center gap-8 px-6 py-6">
+            <!-- Chart -->
+            <div class="relative flex-shrink-0" style="width:160px;height:160px">
+              <canvas id="breakdown-chart" width="160" height="160"></canvas>
+              <div class="absolute inset-0 flex flex-col items-center justify-center
+                          pointer-events-none select-none">
+                <div id="breakdown-center-num"
+                     class="text-xl font-bold tabular-nums text-gray-900 leading-none">—</div>
+                <div class="text-[10px] text-gray-400 mt-1">รายการ</div>
+              </div>
+            </div>
+            <!-- Progress-bar legend -->
+            <div id="breakdown-legend" class="flex-1 w-full min-w-0 space-y-4">
+              <div class="space-y-4">
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-2/5"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-3/5"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-2/5"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-1/2"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-1/3"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+                <div><div class="flex justify-between mb-1.5"><div class="skeleton h-3 rounded w-2/5"></div><div class="skeleton h-3 rounded w-1/5"></div></div><div class="skeleton h-2 rounded-full w-full"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /Category Breakdown -->
+
+        <!-- RIGHT: Recent Formulas ─────────────────────────────────────── -->
+        <div class="lt-card overflow-hidden flex flex-col">
+
+          <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                   style="background:#d1fae5;border:1px solid #a7f3d0">
+                <svg width="15" height="15" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2
+                       M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-gray-900">Active Formulas</h3>
+                <p class="text-[10px] text-gray-400 mt-0.5">สูตรที่บันทึกล่าสุด</p>
+              </div>
+            </div>
+            <button onclick="navigate('formulas')"
+              class="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+              ดูทั้งหมด &rarr;
+            </button>
+          </div>
+
+          <div id="recent-formulas-list"
+               class="flex-1 overflow-y-auto px-6 py-5 flex flex-col space-y-5">
+            <div class="flex items-center"><div class="skeleton w-12 h-12 rounded-xl mr-4 flex-shrink-0"></div><div class="flex flex-col flex-1"><div class="skeleton h-3.5 rounded w-3/4 mb-2"></div><div class="skeleton h-2.5 rounded w-1/2"></div></div></div>
+            <div class="flex items-center"><div class="skeleton w-12 h-12 rounded-xl mr-4 flex-shrink-0"></div><div class="flex flex-col flex-1"><div class="skeleton h-3.5 rounded w-2/3 mb-2"></div><div class="skeleton h-2.5 rounded w-2/5"></div></div></div>
+            <div class="flex items-center"><div class="skeleton w-12 h-12 rounded-xl mr-4 flex-shrink-0"></div><div class="flex flex-col flex-1"><div class="skeleton h-3.5 rounded w-3/4 mb-2"></div><div class="skeleton h-2.5 rounded w-1/2"></div></div></div>
+          </div>
+
+          <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50 flex-shrink-0">
+            <p class="text-[10px] text-gray-400" id="recent-formulas-count"></p>
+            <button onclick="navigate('worksheet')"
+              class="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+              + สร้างสูตรใหม่
+            </button>
+          </div>
+        </div>
+        <!-- /Recent Formulas -->
+
+      </div>
+      <!-- /Bottom split -->
+
+    </div>
+
+    <!-- ─── MATERIALS ─── -->
+    <div id="view-materials" class="view hidden space-y-5 mt-6">
+      <div class="flex items-center justify-between gap-4">
+        <input id="materials-search" type="text"
+          placeholder="ค้นหาชื่อ, INCI, CAS..."
+          oninput="filterMaterials(this.value)"
+          class="flex-1 max-w-xs bg-dark border border-border rounded-lg px-3 py-2 text-sm
+                 text-white placeholder:text-gray-600 focus:border-green focus:outline-none
+                 transition-colors">
+        <div class="flex items-center gap-2">
+          <button id="sync-materials-btn" onclick="syncMaterials()"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border
+                   text-xs font-medium text-gray-500 hover:text-slate-800 hover:border-slate-300
+                   hover:bg-cardHov transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 7m4-4v12"/>
+            </svg>
+            นำเข้าจากผลสแกน
+          </button>
+          <button onclick="openAddMaterial()"
+            class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green text-black
+                   text-xs font-semibold hover:bg-green/90 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            เพิ่มวัตถุดิบ
+          </button>
+        </div>
+      </div>
+      <div id="materials-body" class="lt-card overflow-hidden p-0"><div class="skeleton h-56 rounded-2xl"></div></div>
+    </div>
+
+    <!-- ─── FORMULAS ─── -->
+    <div id="view-formulas" class="view hidden space-y-5 mt-6">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-500">โปรเจกต์สูตรผลิตภัณฑ์ทั้งหมด</p>
+        <button onclick="navigate('worksheet')"
+          class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-green text-black
+                 text-xs font-semibold hover:bg-green/90 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          สร้างสูตรใหม่
+        </button>
+      </div>
+      <div id="formulas-body"><div class="skeleton h-56"></div></div>
+    </div>
+
+    <!-- ─── SCRAPE RESULTS ─── -->
+    <div id="view-scrapes" class="view hidden space-y-5 mt-6">
+
+      <!-- Trigger card -->
+      <div class="bg-card border border-border rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-white">ดึงข้อมูลใหม่</h3>
+        <p class="text-xs text-gray-600 mt-1 mb-4">
+          วาง URL สินค้าจาก myskinrecipes.com แล้วกดปุ่มด้านขวา
+          — ระบบจะใช้ Playwright ดึงรายชื่อ INCI ingredients โดยอัตโนมัติ
+        </p>
+        <div class="flex gap-2">
+          <input id="scrape-url" type="url"
+            placeholder="https://www.myskinrecipes.com/th/skincare/..."
+            class="flex-1 min-w-0 bg-dark border border-border rounded-lg px-3 py-2.5
+                   text-sm text-white placeholder:text-gray-600
+                   focus:border-green focus:outline-none transition-colors">
+          <button id="scrape-btn" onclick="triggerScrape()"
+            class="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green
+                   text-black text-sm font-semibold hover:bg-green/90 transition-colors
+                   disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            เริ่มดึงข้อมูล
+          </button>
+        </div>
+
+        <!-- Job status row — hidden until a job starts -->
+        <div id="scrape-job-status"
+          class="hidden mt-4 items-center gap-3 bg-slate-50 border border-border rounded-lg px-4 py-3">
+          <svg id="scrape-spinner"
+            class="w-4 h-4 flex-shrink-0 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-20" cx="12" cy="12" r="10"
+              stroke="currentColor" stroke-width="3"></circle>
+            <path class="opacity-80" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <div class="flex-1 min-w-0">
+            <p id="scrape-status-text" class="text-sm text-gray-200">—</p>
+            <p id="scrape-status-sub"  class="text-[11px] text-gray-600 mt-0.5 truncate font-mono">—</p>
+          </div>
+          <span id="scrape-status-badge" class="badge text-[11px] flex-shrink-0"
+                style="background:#f59e0b18;color:#f59e0b;">รอดำเนินการ</span>
+        </div>
+      </div>
+
+      <!-- Historical results -->
+      <div>
+        <p class="text-xs text-gray-500 mb-4">ประวัติผลการดึงข้อมูลทั้งหมด</p>
+        <div id="scrapes-body"><div class="skeleton h-48"></div></div>
+      </div>
+    </div>
+
+    <!-- ─── FORMULATION WORKSHEET ─── -->
+    <div id="view-worksheet" class="view hidden space-y-5 mt-6">
+
+      <!-- Action bar -->
+      <div class="flex items-center justify-between">
+        <button onclick="navigate('formulas')"
+          class="flex items-center gap-2 text-sm text-gray-400 hover:text-slate-900 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+          กลับไปรายการสูตร
+        </button>
+        <button id="ws-save-btn" onclick="saveFormula()"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green text-black
+                 text-sm font-semibold hover:bg-green/90 transition-colors
+                 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          บันทึกสูตร
+        </button>
+      </div>
+
+      <!-- Formula metadata -->
+      <div class="bg-card border border-border rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-white mb-4">ข้อมูลสูตร</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1.5">รหัสสูตร <span class="text-red-400">*</span></label>
+            <input id="ws-formula-code" type="text" placeholder="เช่น F-2024-001"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                     placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1.5">ชื่อผลิตภัณฑ์ <span class="text-red-400">*</span></label>
+            <input id="ws-product-name" type="text" placeholder="เช่น QuikBlur™ Brightening Serum"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                     placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1.5">ประเภทผิว</label>
+            <select id="ws-skin-type"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-gray-300
+                     focus:border-green focus:outline-none cursor-pointer transition-colors">
+              <option value="face">ใบหน้า (Face)</option>
+              <option value="body">ร่างกาย (Body)</option>
+              <option value="rinse-off">ล้างออก (Rinse-off)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1.5">ขนาด Batch (กรัม)</label>
+            <input id="ws-batch-size" type="number" value="100" min="1" step="0.1"
+              oninput="recalcTotal()"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                     focus:border-green focus:outline-none transition-colors">
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs text-gray-500 mb-1.5">บันทึก / คำอธิบาย</label>
+            <input id="ws-notes" type="text"
+              placeholder="หมายเหตุสำหรับสูตรนี้ (ไม่บันทึกลง Database)"
+              class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                     placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+          </div>
+        </div>
+      </div>
+
+      <!-- No-materials alert (shown when raw_materials is empty) -->
+      <div id="ws-no-mats-alert" class="hidden items-center gap-3
+           bg-amber-950/30 border border-amber-800/40 rounded-xl p-4">
+        <svg class="w-5 h-5 flex-shrink-0 text-amber-400" fill="none" stroke="currentColor"
+             stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0
+               001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        </svg>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-amber-300">ยังไม่มีวัตถุดิบในคลัง</p>
+          <p class="text-xs text-amber-500 mt-0.5">
+            ไปที่หน้า <strong>วัตถุดิบ</strong> แล้วกด <strong>"นำเข้าจากผลสแกน"</strong>
+            เพื่อดึง INCI names จากผลสแกนที่มีอยู่ จากนั้นกลับมาที่หน้านี้และกด Refresh
+          </p>
+        </div>
+        <button onclick="navigate('materials')"
+          class="flex-shrink-0 px-3 py-1.5 rounded-lg border border-amber-700/50 text-xs
+                 font-medium text-amber-300 hover:bg-amber-900/30 transition-colors">
+          ไปหน้าวัตถุดิบ →
+        </button>
+      </div>
+
+      <!-- Ingredients table -->
+      <div class="bg-card border border-border rounded-xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h3 class="text-sm font-semibold text-white">ส่วนผสม</h3>
+            <p class="text-[11px] text-gray-600 mt-0.5">เลือกวัตถุดิบจากคลังและกรอกปริมาณ % น้ำหนัก</p>
+          </div>
+          <button onclick="addIngRow()"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                   text-green border border-green/30 hover:bg-green/10 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            เพิ่มส่วนผสม
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-card">
+              <tr>
+                <th class="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider w-[90px]">Phase</th>
+                <th class="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">วัตถุดิบ / INCI</th>
+                <th class="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider w-28">% น้ำหนัก</th>
+                <th class="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider w-28">ต้นทุน (฿)</th>
+                <th class="px-4 py-3 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider w-32">กฎระเบียบ</th>
+                <th class="px-4 py-3 w-12"></th>
+              </tr>
+            </thead>
+            <tbody id="ws-ingredients">
+              <!-- rows injected by addIngRow() -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Total summary -->
+      <div class="bg-card border border-border rounded-xl p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-semibold text-white">ยอดรวม</h3>
+            <p id="ws-status" class="text-xs text-amber-400 mt-0.5">ขาดอีก 100.000%</p>
+          </div>
+          <span id="ws-total" class="text-2xl font-bold tabular-nums text-amber-400">0.000%</span>
+        </div>
+        <div class="w-full h-2.5 rounded-full bg-dark overflow-hidden">
+          <div id="ws-bar" class="h-2.5 rounded-full transition-all duration-200"
+               style="width:0%; background:#f59e0b;"></div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <span class="text-[10px] text-gray-600">0%</span>
+          <span class="text-[10px] text-gray-600">100%</span>
+        </div>
+
+        <!-- Cost summary (visible only when ≥1 material has a price) -->
+        <div id="ws-cost-row" class="hidden mt-4 pt-4 border-t border-border
+             grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[11px] text-gray-500 uppercase tracking-wide">ต้นทุน Batch</p>
+            <p id="ws-cost-total" class="text-lg font-bold text-white mt-0.5 tabular-nums">—</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[11px] text-gray-500 uppercase tracking-wide">ต้นทุน / กิโลกรัม</p>
+            <p id="ws-cost-per-kg" class="text-lg font-bold text-white mt-0.5 tabular-nums">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regulatory compliance panel (appears when any flagged ingredient is added) -->
+      <div id="ws-compliance-panel" class="hidden bg-card border border-border rounded-xl p-5 space-y-3">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0 text-amber-400" fill="none" stroke="currentColor"
+               stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0
+                 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          <h3 class="text-sm font-semibold text-white">การตรวจสอบกฎระเบียบ</h3>
+          <span class="text-[10px] text-gray-500 ml-1">ประกาศกระทรวงสาธารณสุข (ACD)</span>
+        </div>
+        <div id="ws-compliance-body" class="space-y-2"></div>
+      </div>
+
+    </div><!-- /view-worksheet -->
+
+    <!-- ─── FORMULA DETAIL ─── -->
+    <div id="view-formula-detail" class="view hidden space-y-5 mt-6">
+
+      <!-- Back bar -->
+      <div class="flex items-center justify-between">
+        <button onclick="navigate('formulas')"
+          class="flex items-center gap-2 text-sm text-gray-400 hover:text-slate-900 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+          กลับไปรายการสูตร
+        </button>
+        <button onclick="navigate('labsheet')"
+          class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border
+                 text-xs font-medium text-gray-400 hover:text-slate-900 hover:border-slate-300
+                 hover:bg-cardHov transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2
+                 m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5
+                 a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          พิมพ์ Lab Sheet
+        </button>
+      </div>
+
+      <!-- Skeleton loader -->
+      <div id="fd-skeleton" class="space-y-4">
+        <div class="skeleton h-44"></div>
+        <div class="skeleton h-72"></div>
+      </div>
+
+      <!-- Error state -->
+      <div id="fd-error"
+        class="hidden bg-red-950/30 border border-red-900/40 rounded-xl p-4 text-red-400 text-sm">
+      </div>
+
+      <!-- Content (filled by loadFormulaDetail) -->
+      <div id="fd-content" class="hidden space-y-5">
+
+        <!-- Header card -->
+        <div class="bg-card border border-border rounded-xl p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <p id="fd-code" class="font-mono text-xs text-green">—</p>
+              <h2 id="fd-name" class="text-xl font-bold text-white mt-1 leading-tight">—</h2>
+              <div id="fd-badges" class="flex items-center gap-2 mt-3 flex-wrap"></div>
+            </div>
+            <div class="flex-shrink-0 text-right text-xs text-gray-500 space-y-1">
+              <p>สร้างเมื่อ <span id="fd-created" class="text-gray-400">—</span></p>
+              <p>อัปเดต <span id="fd-updated" class="text-gray-400">—</span></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-border">
+            <div>
+              <p class="text-[11px] text-gray-500 uppercase tracking-wide mb-1">ขนาด Batch</p>
+              <p id="fd-batch" class="text-sm font-semibold text-white">—</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-gray-500 uppercase tracking-wide mb-1">ประเภทผิว</p>
+              <p id="fd-skin" class="text-sm font-semibold text-white">—</p>
+            </div>
+            <div>
+              <p class="text-[11px] text-gray-500 uppercase tracking-wide mb-1">% Loss</p>
+              <p id="fd-loss" class="text-sm font-semibold text-white">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ingredients table -->
+        <div class="bg-card border border-border rounded-xl overflow-hidden">
+          <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-white">ส่วนผสม</h3>
+              <p id="fd-ing-count" class="text-[11px] text-gray-600 mt-0.5">—</p>
+            </div>
+            <span id="fd-total-badge" class="text-sm font-bold tabular-nums text-gray-500">—</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-card">
+                <tr>
+                  <th class="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider w-20">Phase</th>
+                  <th class="px-4 py-3 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">วัตถุดิบ / INCI</th>
+                  <th class="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider w-28">%</th>
+                  <th class="px-4 py-3 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider w-32">น้ำหนัก (g)</th>
+                </tr>
+              </thead>
+              <tbody id="fd-ingredients"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /fd-content -->
+    </div><!-- /view-formula-detail -->
+
+    <!-- ─── LAB SHEET ─── -->
+    <div id="view-labsheet" class="view hidden mt-6">
+
+      <!-- Screen-only toolbar -->
+      <div class="print-hidden flex items-center justify-between mb-6">
+        <button onclick="navigate('formula-detail')"
+          class="flex items-center gap-2 text-sm text-gray-400 hover:text-slate-900 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+          </svg>
+          กลับไปรายละเอียดสูตร
+        </button>
+        <div class="flex items-center gap-3">
+          <p class="text-xs text-gray-600">ขั้นตอนการผลิตบันทึกใน Browser เท่านั้น</p>
+          <button onclick="window.print()"
+            class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-gray-900
+                   text-sm font-semibold hover:bg-gray-100 transition-colors border border-gray-300">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2
+                   m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5
+                   a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            พิมพ์ / Print
+          </button>
+        </div>
+      </div>
+
+      <!-- Paper -->
+      <div id="ls-paper"
+        class="bg-white text-gray-900 rounded-xl border border-gray-200 shadow-lg
+               max-w-4xl mx-auto overflow-hidden">
+
+        <!-- Header -->
+        <div class="px-8 py-7 border-b-2 border-gray-800">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">
+                P&amp;D Intelligence Suite — Cosmetic Lab Sheet
+              </p>
+              <h1 id="ls-product-name" class="text-2xl font-bold text-gray-900 leading-tight">—</h1>
+              <p id="ls-formula-code" class="font-mono text-sm text-gray-500 mt-1">—</p>
+            </div>
+            <div class="flex-shrink-0 text-right text-xs text-gray-500 space-y-1">
+              <p>Date: <span id="ls-date" class="font-medium text-gray-800">—</span></p>
+              <p>Status: <span id="ls-status" class="font-medium text-gray-800">—</span></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-6 mt-5 pt-4 border-t border-gray-200">
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Batch Size</p>
+              <p id="ls-batch" class="text-sm font-bold text-gray-800">—</p>
+            </div>
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Target Skin</p>
+              <p id="ls-skin" class="text-sm font-bold text-gray-800">—</p>
+            </div>
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Total %</p>
+              <p id="ls-total-pct" class="text-sm font-bold text-gray-800">—</p>
+            </div>
+            <div>
+              <p class="text-[9px] uppercase tracking-wider text-gray-400 font-bold mb-0.5">Total Cost</p>
+              <p id="ls-total-cost" class="text-sm font-bold text-gray-800">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase tables (injected by JS) -->
+        <div id="ls-phases" class="px-8 py-6 space-y-8"></div>
+
+        <!-- Procedure -->
+        <div class="px-8 pb-6 pt-6 border-t-2 border-gray-200">
+          <h2 class="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-500 mb-3">
+            Procedure / Manufacturing Instructions / ขั้นตอนการผลิต
+          </h2>
+          <textarea id="ls-procedure" rows="10"
+            placeholder="กรอกขั้นตอนการผลิตที่นี่...&#10;&#10;1. ..."
+            class="w-full border border-gray-300 rounded-lg p-4 text-sm text-gray-800
+                   focus:border-gray-600 focus:outline-none resize-y leading-relaxed
+                   placeholder:text-gray-300 font-mono"
+            oninput="saveLsProcedure()"></textarea>
+          <p class="text-[10px] text-gray-400 mt-1.5 print-hidden">
+            ข้อความนี้บันทึกใน Browser — ไม่ถูกส่งไปยัง Database
+          </p>
+        </div>
+
+        <!-- Compliance Warnings (injected by _renderLabSheet; hidden when clean) -->
+        <div id="ls-compliance-section" class="hidden px-8 pb-6 pt-6 border-t-2 border-red-200">
+          <h2 class="text-[10px] font-bold uppercase tracking-[0.15em] text-red-600 mb-3">
+            ⚠ แจ้งเตือนการปฏิบัติตามกฎระเบียบ — ประกาศกระทรวงสาธารณสุข (ACD)
+          </h2>
+          <div id="ls-compliance-body" class="space-y-2"></div>
+        </div>
+
+        <!-- Sign-off -->
+        <div class="px-8 pb-8 pt-6 border-t border-gray-200">
+          <div class="grid grid-cols-2 gap-12">
+            <div class="space-y-6">
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-2">Prepared by</p>
+                <div class="border-b border-gray-400 pb-1 h-7"></div>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-2">Date</p>
+                <div class="border-b border-gray-400 pb-1 h-7"></div>
+              </div>
+            </div>
+            <div class="space-y-6">
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-2">Reviewed / Approved by</p>
+                <div class="border-b border-gray-400 pb-1 h-7"></div>
+              </div>
+              <div>
+                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-2">Signature</p>
+                <div class="border-b border-gray-400 pb-1 h-7"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /ls-paper -->
+    </div><!-- /view-labsheet -->
+
+  </div><!-- /content-scroll -->
+</div><!-- /main -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PRICE EDIT MODAL
+════════════════════════════════════════════════════════════════ -->
+<div id="price-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-black/70" onclick="closePriceModal()"></div>
+  <div class="relative z-10 bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <h3 id="pm-title" class="text-sm font-semibold text-white mb-0.5">แก้ไขข้อมูลวัตถุดิบ</h3>
+    <p id="pm-name" class="text-xs text-gray-500 mb-4 truncate">—</p>
+
+    <!-- Add-only fields: shown when _pmId is null (create mode) -->
+    <div id="pm-add-fields" class="hidden space-y-3 mb-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">
+          ชื่อสินค้า (Trade Name) <span class="text-red-400">*</span>
+        </label>
+        <input id="pm-trade-name" type="text" placeholder="เช่น Ceramide NP"
+          class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                 placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1.5">
+          INCI Name <span class="text-red-400">*</span>
+        </label>
+        <input id="pm-inci-name" type="text" placeholder="เช่น CERAMIDE NP"
+          class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+                 placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors">
+      </div>
+    </div>
+
+    <label class="block text-xs text-gray-500 mb-1.5">ราคาต่อกิโลกรัม (฿)</label>
+    <input id="pm-price" type="number" min="0" step="0.01" placeholder="0.00"
+      class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+             focus:border-green focus:outline-none transition-colors mb-4"
+      onkeydown="if(event.key==='Enter') saveMaterialPrice()">
+
+    <label class="block text-xs text-gray-500 mb-1.5">CAS Number</label>
+    <input id="pm-cas" type="text" placeholder="เช่น 69-72-7"
+      class="w-full bg-dark border border-border rounded-lg px-3 py-2.5 text-sm text-white
+             placeholder:text-gray-600 focus:border-green focus:outline-none transition-colors mb-5"
+      onkeydown="if(event.key==='Enter') saveMaterialPrice()">
+
+    <div class="flex gap-2 justify-end">
+      <button onclick="closePriceModal()"
+        class="px-4 py-2 rounded-lg border border-border text-xs text-gray-400
+               hover:text-slate-900 hover:bg-cardHov transition-colors">ยกเลิก</button>
+      <button id="pm-save-btn" onclick="saveMaterialPrice()"
+        class="px-4 py-2 rounded-lg bg-green text-black text-xs font-semibold
+               hover:bg-green/90 transition-colors disabled:opacity-40">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TOAST
+════════════════════════════════════════════════════════════════ -->
+<div id="toast"
+  class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3
+         bg-card border border-border rounded-xl shadow-2xl
+         translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+  <span id="toast-dot" class="w-2 h-2 rounded-full bg-green flex-shrink-0"></span>
+  <span id="toast-msg"  class="text-sm text-white"></span>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ───────────────────── state ───────────────────── */
+const S = { page: 'dashboard' };
+
+/* ───────────────────── toast ───────────────────── */
+let _toastTimer;
+function toast(msg, err = false) {
+  const el  = document.getElementById('toast');
+  const dot = document.getElementById('toast-dot');
+  const txt = document.getElementById('toast-msg');
+  clearTimeout(_toastTimer);
+  dot.className = `w-2 h-2 rounded-full flex-shrink-0 ${err ? 'bg-red-500' : 'bg-green'}`;
+  txt.textContent = msg;
+  el.classList.remove('translate-y-20','opacity-0','pointer-events-none');
+  _toastTimer = setTimeout(() => {
+    el.classList.add('translate-y-20','opacity-0','pointer-events-none');
+  }, 3000);
+}
+
+/* ───────────────────── api ───────────────────── */
+const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
+
+async function apiFetch(path) {
+  const r = await fetch(API_BASE + path);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text().catch(() => '')}`);
+  return r.json();
+}
+
+/* ───────────────────── router ───────────────────── */
+const PAGE_META = {
+  dashboard:        ['ภาพรวม',          'Cosmetic P&D Intelligence Suite'],
+  materials:        ['วัตถุดิบ',         'คลังสินค้าวัตถุดิบทั้งหมด'],
+  formulas:         ['สูตรผลิตภัณฑ์',   'จัดการสูตรและการผลิต'],
+  worksheet:        ['สร้างสูตรใหม่',    'Formulation Worksheet — กรอก % ส่วนผสม'],
+  'formula-detail': ['รายละเอียดสูตร',  'ดูส่วนผสมและน้ำหนักต่อ Batch'],
+  labsheet:         ['Lab Sheet',        'สูตรผลิต — พิมพ์ใบสั่งผลิต'],
+  scrapes:          ['ผลการดึงข้อมูล',   'ดึงข้อมูล INCI จากซัพพลายเออร์'],
+};
+
+// Subtitle shown in the shared hero banner per page
+const _HERO_SUBS = {
+  dashboard:        'AI-Powered R&D Insights & Formula Management System',
+  materials:        'Raw Materials Database · 15,480+ INCI Ingredients',
+  formulas:         'Formula Development & Regulatory Compliance',
+  scrapes:          'Web Scraping & Data Import Logs',
+  worksheet:        'New Formula Worksheet — Design & Compliance Check',
+  'formula-detail': 'Formula Details & Analysis',
+  labsheet:         'Lab Sheet & Manufacturing Report',
+};
+
+function navigate(page) {
+  S.page = page;
+  document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`view-${page}`).classList.remove('hidden');
+  const navEl = document.getElementById(`nav-${page}`);
+  if (navEl) navEl.classList.add('active');
+  else if (page === 'worksheet' || page === 'formula-detail' || page === 'labsheet')
+    document.getElementById('nav-formulas').classList.add('active');
+
+  // Update hidden header spans (kept for legacy compat) + hero banner subtitle
+  document.getElementById('page-title').textContent = PAGE_META[page]?.[0] ?? page;
+  document.getElementById('page-sub').textContent   = PAGE_META[page]?.[1] ?? '';
+  const heroSub = document.getElementById('hero-sub');
+  if (heroSub) heroSub.textContent = _HERO_SUBS[page] ?? _HERO_SUBS.dashboard;
+
+  loadPage(page);
+}
+
+function refreshCurrent() { loadPage(S.page); toast('รีเฟรชข้อมูลเรียบร้อยแล้ว'); }
+
+async function loadPage(p) {
+  const map = {
+    dashboard: loadDashboard, materials: loadMaterials,
+    formulas: loadFormulas,   scrapes: loadScrapes,
+    worksheet: loadWorksheet, 'formula-detail': loadFormulaDetail,
+    labsheet: loadLabSheet,
+  };
+  await (map[p] || (() => {}))();
+}
+
+/* ───────────────────── helpers ───────────────────── */
+function el(id)    { return document.getElementById(id); }
+function skel(h=56){ return `<div class="skeleton h-${h}"></div>`; }
+
+function badgeHtml(label, color) {
+  return `<span class="badge" style="background:${color}18;color:${color};">${label}</span>`;
+}
+
+function emptyState(icon, title, sub = '') {
+  return `
+    <div class="lt-card p-16 flex flex-col items-center text-center">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+           style="background:#f1f5f9">
+        ${icon}
+      </div>
+      <p class="text-slate-600 font-medium text-sm">${title}</p>
+      ${sub ? `<p class="text-slate-400 text-xs mt-1">${sub}</p>` : ''}
+    </div>`;
+}
+
+function renderTable(cols, rows, emptyTitle, emptySub = '') {
+  if (!rows.length) {
+    const ico = `<svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5
+           m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0
+           01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>`;
+    return emptyState(ico, emptyTitle, emptySub);
+  }
+  const ths = cols.map(c =>
+    `<th class="px-4 py-3 text-left text-[11px] font-medium text-gray-500
+                uppercase tracking-wider whitespace-nowrap">${c.label}</th>`
+  ).join('');
+  const trs = rows.map(row => {
+    const tds = cols.map(c => {
+      const v = c.render ? c.render(row) : (row[c.key] ?? '<span class="text-gray-600">-</span>');
+      return `<td class="px-4 py-3 text-sm text-slate-700">${v}</td>`;
+    }).join('');
+    return `<tr class="table-row border-t border-border">${tds}</tr>`;
+  }).join('');
+  return `
+    <div class="lt-card overflow-hidden p-0">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <tr>${ths}</tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ───────────────────── stat card ───────────────────── */
+const STAT_META = {
+  raw_materials: { label:'วัตถุดิบ',       color:'#3b82f6', icon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/></svg>` },
+  formulas:      { label:'สูตรผลิตภัณฑ์', color:'#8b5cf6', icon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>` },
+  scrape_jobs:   { label:'งานดึงข้อมูล',   color:'#f59e0b', icon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>` },
+  scrape_results:{ label:'ผลลัพธ์',         color:'#00e676', icon: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>` },
+};
+
+function renderStatCard(key, count) {
+  const m = STAT_META[key] || { label: key, color: '#6b7280', icon: '' };
+  return `
+    <div class="card-hover bg-card rounded-xl border border-border p-5 flex gap-4 items-start"
+         style="--glow:${m.color};">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+           style="background:${m.color}18; color:${m.color};">
+        ${m.icon}
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-white">${count}</div>
+        <div class="text-xs text-gray-500 mt-0.5">${m.label}</div>
+      </div>
+    </div>`;
+}
+
+// ── Big 3-metric-card top row ─────────────────────────────────────────────
+function _renderMetricCards(stats, formulas) {
+  const ingredients   = (stats.raw_materials ?? 0).toLocaleString();
+  const totalFormulas = (stats.formulas ?? 0).toLocaleString();
+  const pending       = (formulas.filter(f => f.status === 'stability_testing').length).toLocaleString();
+
+  const card = (cfg) => `
+    <div class="lt-card p-6 relative overflow-hidden">
+      <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full pointer-events-none"
+           style="background:${cfg.color};opacity:.06"></div>
+      <div class="flex items-start justify-between mb-5">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+             style="background:${cfg.bg};color:${cfg.color}">
+          ${cfg.icon}
+        </div>
+        <span class="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+              style="background:${cfg.bg};color:${cfg.color}">
+          ${cfg.tag}
+        </span>
+      </div>
+      <div class="text-[2rem] font-bold text-gray-900 tabular-nums tracking-tight leading-none mb-1.5">
+        ${cfg.value}
+      </div>
+      <div class="text-xs font-medium text-gray-700">${cfg.label}</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">${cfg.sub}</div>
+    </div>`;
+
+  const ICONS = {
+    flask: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M9 3v10.5l-3.5 5A2 2 0 007.19 21h9.62a2 2 0 001.69-3.05L15 13.5V3M9 3h6M9 3H7m8 0h2"/>
+    </svg>`,
+    beaker: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158
+           a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0
+           00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782
+           0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+    </svg>`,
+    clock: `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>`,
+  };
+
+  el('metric-cards').innerHTML = [
+    card({ color:'#059669', bg:'#d1fae5', icon: ICONS.flask,  tag:'Live',    value: ingredients,
+           label:'Total Raw Ingredients',   sub:'วัตถุดิบในฐานข้อมูล' }),
+    card({ color:'#3b82f6', bg:'#dbeafe', icon: ICONS.beaker, tag:'Formulas', value: totalFormulas,
+           label:'Total Saved Formulas',    sub:'สูตรที่บันทึกไว้ทั้งหมด' }),
+    card({ color:'#d97706', bg:'#fef3c7', icon: ICONS.clock,  tag:'Pending',  value: pending,
+           label:'Pending Stability Tests', sub:'รอทดสอบความคงตัว' }),
+  ].join('');
+}
+
+function _renderMetricCardsError() {
+  el('metric-cards').innerHTML =
+    `<div class="col-span-3 lt-card p-4 text-red-600 text-sm
+                 border-red-100" style="border-color:#fecaca">เชื่อมต่อ API ไม่ได้</div>`;
+}
+
+/* ───────────────────── scrape card ───────────────────── */
+const STATUS_CFG = {
+  success: { color:'#00e676', label:'สำเร็จ'        },
+  failed:  { color:'#ef4444', label:'ล้มเหลว'       },
+  running: { color:'#f59e0b', label:'กำลังทำงาน'    },
+  pending: { color:'#6b7280', label:'รอดำเนินการ'   },
+};
+
+function renderScrapeCard(r) {
+  const job    = r.scrape_jobs || {};
+  const url    = job.source_url || '-';
+  const ts     = r.created_at ? new Date(r.created_at).toLocaleString('th-TH') : '';
+  const parsed = Array.isArray(r.parsed) ? r.parsed : [];
+  const status = job.status || 'unknown';
+  const cfg    = STATUS_CFG[status] || { color:'#6b7280', label: status };
+
+  const shortUrl = url.length > 90 ? url.slice(0, 90) + '...' : url;
+
+  const chips = parsed.length
+    ? `<div class="flex flex-wrap gap-1.5 mt-4">
+        ${parsed.map(i => {
+          const pct = i.percentage ? `<span class="pct">${i.percentage}%</span>` : '';
+          return `<span class="chip">${i.name}${pct}</span>`;
+        }).join('')}
+       </div>`
+    : `<p class="text-xs text-gray-600 italic mt-3">ไม่พบข้อมูลส่วนผสม</p>`;
+
+  return `
+    <div class="card-hover bg-card rounded-xl border border-border p-5">
+      <div class="flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${badgeHtml(cfg.label, cfg.color)}
+            ${parsed.length ? `<span class="text-xs text-gray-500">${parsed.length} ส่วนผสม</span>` : ''}
+            <span class="text-xs text-gray-600">${ts}</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1.5 break-all">${shortUrl}</p>
+        </div>
+        ${url !== '-' ? `
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             class="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg
+                    text-gray-600 hover:text-gray-300 hover:bg-cardHov transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4
+                   M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+          </a>` : ''}
+      </div>
+      ${chips}
+    </div>`;
+}
+
+/* ───────────────────── loaders ───────────────────── */
+
+// ── Ingredient Breakdown Chart ────────────────────────────────────────────
+// Saturated colours that read well on white card backgrounds
+const _BD_COLORS = {
+  'Actives & Extracts':        '#10b981',   // emerald-500
+  'Emulsifiers & Surfactants': '#3b82f6',   // blue-500
+  'Thickeners & Polymers':     '#8b5cf6',   // violet-500
+  'Solvents & Bases':          '#14b8a6',   // teal-500
+  'Preservatives':             '#f59e0b',   // amber-500
+  'Others':                    '#94a3b8',   // slate-400
+};
+const _BD_LABELS_TH = {
+  'Actives & Extracts':        'Actives & Extracts',
+  'Emulsifiers & Surfactants': 'Emulsifiers & Surfactants',
+  'Thickeners & Polymers':     'Thickeners & Polymers',
+  'Solvents & Bases':          'Solvents & Bases',
+  'Preservatives':             'Preservatives',
+  'Others':                    'Others',
+};
+
+let _bdChart = null;
+
+function _renderBreakdownChart(data) {
+  const keys   = Object.keys(_BD_COLORS);
+  const values = keys.map(k => data[k] ?? 0);
+  const total  = values.reduce((s, v) => s + v, 0);
+  const maxVal = Math.max(...values, 1);
+
+  el('breakdown-center-num').textContent  = total.toLocaleString();
+  el('breakdown-total-badge').textContent = `${total.toLocaleString()} รายการ`;
+
+  // Doughnut chart — 148 px fixed
+  const canvas = el('breakdown-chart');
+  canvas.width  = 148;
+  canvas.height = 148;
+  const ctx = canvas.getContext('2d');
+  if (_bdChart) { _bdChart.destroy(); _bdChart = null; }
+
+  _bdChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels:   keys,
+      datasets: [{
+        data:             values,
+        backgroundColor:  keys.map(k => _BD_COLORS[k]),
+        borderColor:      '#ffffff',
+        borderWidth:      3,
+        hoverBorderWidth: 4,
+        hoverBorderColor: '#f8fafc',
+      }],
+    },
+    options: {
+      cutout:     '70%',
+      responsive: false,
+      animation:  { duration: 700, easing: 'easeInOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c2030',
+          borderColor:     '#2a304a',
+          borderWidth:     1,
+          titleColor:      '#e5e7eb',
+          bodyColor:       '#9ca3af',
+          padding:         10,
+          callbacks: {
+            label: ctx => {
+              const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+              return `  ${ctx.parsed.toLocaleString()} (${pct}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Custom progress-bar legend — one row per category, percentage-width bars
+  const bars = keys.map((k, i) => {
+    const v   = values[i];
+    const pct = total ? ((v / total) * 100).toFixed(1) : '0.0';
+    const col = _BD_COLORS[k];
+    return `
+      <div>
+        <div class="flex justify-between items-baseline mb-1.5">
+          <span class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${col}"></span>
+            <span class="text-[11px] text-gray-700 font-medium">${k}</span>
+          </span>
+          <span class="text-[11px] font-semibold tabular-nums text-gray-900 ml-3">
+            ${v.toLocaleString()}<span class="text-[10px] text-gray-400 font-normal ml-1">${pct}%</span>
+          </span>
+        </div>
+        <div class="w-full h-2 rounded-full bg-gray-100">
+          <div class="h-2 rounded-full" style="width:${pct}%;background:${col};transition:width .8s ease"></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  el('breakdown-legend').innerHTML = `<div class="space-y-4">${bars}</div>`;
+}
+
+function _renderBreakdownError() {
+  el('breakdown-total-badge').textContent = 'ไม่สามารถโหลดได้';
+  el('breakdown-legend').innerHTML =
+    `<p class="text-[11px] text-gray-600 py-4">โหลดข้อมูลไม่ได้</p>`;
+}
+
+// ── Recent Formulas list ──────────────────────────────────────────────────
+const _FORMULA_STATUS = {
+  draft:               { color: '#6b7280', bg: '#f3f4f6', label: 'Draft'     },
+  stability_testing:   { color: '#d97706', bg: '#fef3c7', label: 'Stability' },
+  approved:            { color: '#059669', bg: '#d1fae5', label: 'Approved'  },
+  rejected:            { color: '#dc2626', bg: '#fee2e2', label: 'Rejected'  },
+};
+const _ICON_PALETTE = [
+  ['#00e676','rgba(0,230,118,.14)'],
+  ['#60a5fa','rgba(96,165,250,.14)'],
+  ['#a78bfa','rgba(167,139,250,.14)'],
+  ['#34d399','rgba(52,211,153,.14)'],
+  ['#fb923c','rgba(251,146,60,.14)'],
+  ['#f472b6','rgba(244,114,182,.14)'],
+];
+const _SKIN_TH = { face:'ใบหน้า', body:'ร่างกาย', 'rinse-off':'ล้างออก' };
+
+function _relativeTime(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60)   return `${m || 1} นาทีที่แล้ว`;
+  const h = Math.floor(m / 60);
+  if (h < 24)   return `${h} ชั่วโมงที่แล้ว`;
+  const d = Math.floor(h / 24);
+  if (d < 30)   return `${d} วันที่แล้ว`;
+  return new Date(iso).toLocaleDateString('th-TH', { day:'numeric', month:'short' });
+}
+
+function _renderRecentFormulas(formulas) {
+  const list = el('recent-formulas-list');
+  const count = el('recent-formulas-count');
+  if (count) count.textContent = `${formulas.length} สูตรทั้งหมด`;
+
+  if (!formulas.length) {
+    list.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-12 text-center px-6">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
+             style="background:rgba(255,255,255,.04)">
+          <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor"
+               stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+          </svg>
+        </div>
+        <p class="text-sm text-gray-600">ยังไม่มีสูตรที่บันทึกไว้</p>
+        <p class="text-xs text-gray-700 mt-1">กด "สร้างสูตรใหม่" เพื่อเริ่มต้น</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  list.className = 'flex-1 overflow-y-auto px-6 py-5 flex flex-col space-y-5';
+
+  const rows = formulas.slice(0, 6).map((f, i) => {
+    const [iconColor, iconBg] = _ICON_PALETTE[i % _ICON_PALETTE.length];
+    const initial = (f.product_name || f.formula_code || '?')[0].toUpperCase();
+    const stCfg   = _FORMULA_STATUS[f.status] || { color: '#6b7280', label: f.status };
+    const skin    = _SKIN_TH[f.target_skin_type] || f.target_skin_type || '';
+    const when    = _relativeTime(f.created_at);
+    const meta    = [f.formula_code, skin].filter(Boolean).join(' · ');
+
+    // Each row: flex items-center justify-between — no table, no dividers
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between cursor-pointer group rounded-xl px-2 py-1 -mx-2 hover:bg-gray-50 transition-colors';
+    row.onclick   = () => navigate('formulas');
+    row.innerHTML = `
+      <div class="flex items-center min-w-0 flex-1">
+        <!-- Icon box: w-12 h-12, rounded-xl, light tint bg -->
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 mr-4
+                    text-base font-bold select-none transition-transform group-hover:scale-105"
+             style="background:${iconBg};color:${iconColor}">
+          ${initial}
+        </div>
+        <!-- Text: name bold dark + status · code smaller gray -->
+        <div class="flex flex-col min-w-0">
+          <span class="text-sm font-semibold text-gray-900 truncate leading-snug">
+            ${f.product_name || '(ไม่มีชื่อ)'}
+          </span>
+          <span class="text-[11px] mt-0.5 font-medium truncate"
+                style="color:${stCfg.color}">
+            ${stCfg.label}
+            ${meta ? `<span class="text-gray-400 font-normal"> · ${meta}</span>` : ''}
+          </span>
+        </div>
+      </div>
+      <!-- Timestamp — right-aligned -->
+      <span class="text-[11px] text-gray-400 flex-shrink-0 ml-4 whitespace-nowrap">${when}</span>`;
+    return row;
+  });
+
+  rows.forEach(r => list.appendChild(r));
+}
+
+function _renderRecentFormulasError() {
+  const list = el('recent-formulas-list');
+  list.className = 'flex-1 overflow-y-auto px-6 py-5 flex flex-col space-y-5';
+  list.innerHTML = `<p class="text-xs text-gray-500">โหลดข้อมูลสูตรไม่ได้</p>`;
+}
+
+async function loadDashboard() {
+  // Set skeletons
+  el('metric-cards').innerHTML = [1,2,3].map(() =>
+    `<div class="skeleton h-36 rounded-2xl"></div>`).join('');
+  el('recent-formulas-list').className = 'flex-1 overflow-y-auto px-6 py-5 flex flex-col space-y-5';
+  el('recent-formulas-list').innerHTML = [1,2,3].map(() => `
+    <div class="flex items-center">
+      <div class="skeleton w-12 h-12 rounded-xl mr-4 flex-shrink-0"></div>
+      <div class="flex flex-col flex-1">
+        <div class="skeleton h-3.5 rounded w-3/4 mb-2"></div>
+        <div class="skeleton h-2.5 rounded w-2/5"></div>
+      </div>
+    </div>`).join('');
+
+  // All four requests fire simultaneously
+  const [statsRes, formulasRes, regRes, bdRes] = await Promise.allSettled([
+    apiFetch('/api/stats'),
+    apiFetch('/api/formulas'),
+    apiFetch('/api/compliance/summary'),
+    apiFetch('/api/dashboard/ingredient-breakdown'),
+  ]);
+
+  const stats    = statsRes.status    === 'fulfilled' ? statsRes.value    : null;
+  const formulas = formulasRes.status === 'fulfilled' ? formulasRes.value : [];
+
+  // ── Metric cards ───────────────────────────────────────────────────────
+  if (stats) {
+    _renderMetricCards(stats, formulas);
+    el('conn-dot').className     = 'w-2 h-2 rounded-full bg-green pulse-dot';
+    el('conn-label').textContent = 'เชื่อมต่อแล้ว';
+  } else {
+    _renderMetricCardsError();
+    el('conn-dot').className     = 'w-2 h-2 rounded-full bg-red-500';
+    el('conn-label').textContent = 'เชื่อมต่อไม่ได้';
+    toast('ไม่สามารถเชื่อมต่อ API ได้', true);
+  }
+
+  // ── Recent formulas list ───────────────────────────────────────────────
+  if (formulasRes.status === 'fulfilled') {
+    _renderRecentFormulas(formulas);
+  } else {
+    _renderRecentFormulasError();
+  }
+
+  // ── Regulatory Quick Alert ─────────────────────────────────────────────
+  if (regRes.status === 'fulfilled') {
+    _renderRegAlert(regRes.value);
+  } else {
+    _renderRegAlertError();
+  }
+
+  // ── Ingredient Category Breakdown ──────────────────────────────────────
+  if (bdRes.status === 'fulfilled') {
+    _renderBreakdownChart(bdRes.value);
+  } else {
+    _renderBreakdownError();
+  }
+}
+
+function _setRegSkeleton() {
+  el('reg-cnt-banned').innerHTML     = `<span class="skeleton inline-block w-8 h-9 rounded"></span>`;
+  el('reg-cnt-restricted').innerHTML = `<span class="skeleton inline-block w-8 h-9 rounded"></span>`;
+  el('reg-cnt-warning').innerHTML    = `<span class="skeleton inline-block w-8 h-9 rounded"></span>`;
+  el('reg-total-badge').textContent  = 'กำลังสแกน…';
+  el('reg-formula-bar').innerHTML    = `<div class="skeleton h-4 w-64 rounded"></div>`;
+  el('reg-violation-table').classList.add('hidden');
+  // Spin the rescan icon while loading
+  el('reg-rescan-icon').style.animation = 'spin 1s linear infinite';
+}
+
+function _renderRegAlert(data) {
+  const db = data.regulatory_db   || {};
+  const fs = data.formula_stats   || {};
+  const fv = data.formula_violations || [];
+
+  // Stop spin
+  el('reg-rescan-icon').style.animation = '';
+
+  // ── Counters ─────────────────────────────────────────────────────────────
+  el('reg-cnt-banned').textContent     = db.banned           ?? '—';
+  el('reg-cnt-restricted').textContent = db.restricted       ?? '—';
+  el('reg-cnt-warning').textContent    = db.warning_required ?? '—';
+
+  const srcLabel  = db.source === 'database' ? 'Live DB scan' : 'Static dict';
+  el('reg-total-badge').textContent   = `${(db.total ?? 0).toLocaleString()} สารในฐานข้อมูล`;
+  el('reg-source-tag').textContent    = `· ${srcLabel}`;
+
+  // ── Formula violation bar ─────────────────────────────────────────────────
+  const bar = el('reg-formula-bar');
+  if (!fs.checked) {
+    bar.innerHTML = `<p class="text-xs text-gray-600">ยังไม่มีสูตรที่บันทึกไว้เพื่อตรวจสอบ</p>`;
+    el('reg-violation-table').classList.add('hidden');
+    return;
+  }
+  if (fs.with_violations === 0) {
+    bar.innerHTML = `
+      <svg class="w-3.5 h-3.5 text-green flex-shrink-0" fill="none" stroke="currentColor"
+           stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+      </svg>
+      <span class="text-xs text-green font-medium">ไม่พบการละเมิดในสูตรที่บันทึกไว้
+        <span class="text-gray-600 font-normal">(ตรวจสอบ ${fs.checked} สูตร)</span>
+      </span>`;
+    el('reg-violation-table').classList.add('hidden');
+    return;
+  }
+
+  // Has violations — summary bar
+  const hasBanned   = fv.some(f => f.has_banned);
+  const hasExceeded = fv.some(f => f.has_exceeded);
+  const dotColor    = hasBanned ? '#ef4444' : hasExceeded ? '#f59e0b' : '#3b82f6';
+  const labelColor  = hasBanned ? 'text-red-400' : hasExceeded ? 'text-amber-400' : 'text-blue-400';
+  bar.innerHTML = `
+    <svg class="w-3.5 h-3.5 flex-shrink-0" style="color:${dotColor}"
+         fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94
+           a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    </svg>
+    <span class="text-xs ${labelColor} font-medium">
+      พบ ${fs.with_violations} สูตรที่มีสารควบคุม (${fs.total_violations} รายการ)
+    </span>
+    <span class="text-xs text-gray-600">ตรวจสอบ ${fs.checked} สูตร</span>`;
+
+  // ── Violation detail table ────────────────────────────────────────────────
+  const rows = [];
+  for (const formula of fv) {
+    const fid = formula.formula_id.slice(0, 8);
+    for (const d of (formula.details || [])) {
+      const isBanned   = d.level === 'banned';
+      const isExceeded = d.exceeded && !isBanned;
+      const [badgeColor, badgeText] = isBanned
+        ? ['#ef4444', 'PROHIBITED']
+        : isExceeded
+          ? ['#f59e0b', 'EXCEEDED']
+          : ['#3b82f6', 'WARNING'];
+      const maxCell = d.max_limit_pct != null ? `${d.max_limit_pct}%` : '—';
+      rows.push(`
+        <tr class="table-row border-b border-border/50">
+          <td class="px-4 py-2 font-mono text-green text-[10px]">${fid}…</td>
+          <td class="px-4 py-2 text-gray-300 max-w-[180px] truncate"
+              title="${d.inci_name}">${d.inci_name || d.trade_name}</td>
+          <td class="px-4 py-2 text-right tabular-nums text-gray-300">${d.percentage}%</td>
+          <td class="px-4 py-2 text-right tabular-nums text-gray-500">${maxCell}</td>
+          <td class="px-4 py-2">
+            <span class="badge text-[9px] font-bold uppercase"
+                  style="background:${badgeColor}22;color:${badgeColor};
+                         border:1px solid ${badgeColor}44">
+              ${badgeText}
+            </span>
+          </td>
+        </tr>`);
+    }
+  }
+  el('reg-violation-rows').innerHTML = rows.join('');
+  el('reg-violation-table').classList.remove('hidden');
+}
+
+function _renderRegAlertError() {
+  el('reg-rescan-icon').style.animation = '';
+  el('reg-cnt-banned').textContent     = '—';
+  el('reg-cnt-restricted').textContent = '—';
+  el('reg-cnt-warning').textContent    = '—';
+  el('reg-total-badge').textContent    = 'ไม่สามารถโหลดได้';
+  el('reg-formula-bar').innerHTML      = `<p class="text-xs text-gray-600">โหลดข้อมูล Regulatory ไม่ได้</p>`;
+  el('reg-violation-table').classList.add('hidden');
+}
+
+async function _rescanRegulatory() {
+  _setRegSkeleton();
+  try {
+    const data = await apiFetch('/api/compliance/summary');
+    _renderRegAlert(data);
+  } catch {
+    _renderRegAlertError();
+  }
+}
+
+async function loadMaterials() {
+  el('materials-body').innerHTML = skel(56);
+  try {
+    _matCache = await apiFetch('/api/materials');
+    el('materials-search').value = '';   // clear stale search
+    el('materials-body').innerHTML = _renderMaterialsTable(_matCache);
+  } catch(e) {
+    el('materials-body').innerHTML =
+      `<div class="bg-red-950/30 border border-red-900/40 rounded-xl p-4 text-red-400 text-sm">
+         เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
+}
+
+async function loadFormulas() {
+  el('formulas-body').innerHTML = skel(56);
+  try {
+    const items = await apiFetch('/api/formulas');
+    const skinMap = { face:'ใบหน้า', body:'ร่างกาย', 'rinse-off':'ล้างออก' };
+    const statusMap = {
+      draft:              ['#6b7280','ร่าง'],
+      stability_testing:  ['#f59e0b','ทดสอบความคงตัว'],
+      approved:           ['#00e676','อนุมัติ'],
+      rejected:           ['#ef4444','ปฏิเสธ'],
+    };
+    const cols = [
+      { label:'รหัสสูตร',        key:'formula_code',
+        render: r => `<span class="font-mono text-green text-xs">${r.formula_code}</span>` },
+      { label:'ชื่อผลิตภัณฑ์',  key:'product_name',
+        render: r => `<span class="font-medium text-white">${r.product_name}</span>` },
+      { label:'เป้าหมาย',        key:'target_skin_type',
+        render: r => `<span class="badge bg-cardHov text-gray-300">${skinMap[r.target_skin_type]||r.target_skin_type}</span>` },
+      { label:'ขนาด Batch',      key:'batch_size_g',
+        render: r => `${Number(r.batch_size_g).toLocaleString()} g` },
+      { label:'สถานะ',           key:'status',
+        render: r => { const [c,l]=statusMap[r.status]||['#6b7280',r.status]; return badgeHtml(l,c); } },
+      { label:'สร้างเมื่อ',      key:'created_at',
+        render: r => `<span class="text-gray-500">${new Date(r.created_at).toLocaleDateString('th-TH')}</span>` },
+      { label: '', key: 'id',
+        render: r => `
+          <button onclick="openFormulaDetail('${r.id}')"
+            class="px-3 py-1.5 rounded-lg border border-border text-xs text-gray-400
+                   hover:text-slate-900 hover:border-slate-300 hover:bg-cardHov transition-colors whitespace-nowrap">
+            ดูรายละเอียด →
+          </button>` },
+    ];
+    el('formulas-body').innerHTML = renderTable(cols, items,
+      'ยังไม่มีสูตรผลิตภัณฑ์', 'สร้างสูตรแรกผ่านปุ่ม "สร้างสูตรใหม่" ด้านบน');
+  } catch(e) {
+    el('formulas-body').innerHTML =
+      `<div class="bg-red-950/30 border border-red-900/40 rounded-xl p-4 text-red-400 text-sm">
+         เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
+}
+
+async function loadScrapes() {
+  el('scrapes-body').innerHTML = skel(48);
+  try {
+    const items = await apiFetch('/api/scrape-results');
+    if (!items.length) {
+      const ico = `<svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>`;
+      el('scrapes-body').innerHTML = emptyState(ico,
+        'ยังไม่มีผลการดึงข้อมูล',
+        'ใส่ URL ด้านบนและกด "เริ่มดึงข้อมูล" เพื่อดึงข้อมูล INCI ingredients');
+    } else {
+      el('scrapes-body').innerHTML =
+        `<p class="text-xs text-gray-600 mb-4">${items.length} ผลลัพธ์ทั้งหมด</p>` +
+        items.map(renderScrapeCard).join('');
+    }
+  } catch(e) {
+    el('scrapes-body').innerHTML =
+      `<div class="bg-red-950/30 border border-red-900/40 rounded-xl p-4 text-red-400 text-sm">
+         เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
+}
+
+/* ───────────────────── worksheet ───────────────────── */
+const WS = { rowCount: 0 };
+
+// ── Material combobox ─────────────────────────────────────────────────────
+const _matTimers  = {};   // debounce timers per row
+const _matResults = {};   // last search results per row
+
+function _safeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _matSearch(input, id) {
+  clearTimeout(_matTimers[id]);
+  const q = input.value.trim();
+  if (q.length < 2) { _matDdClose(id); return; }
+  const dd = document.getElementById(`mat-dd-${id}`);
+  dd.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500">กำลังค้นหา...</div>';
+  _matDdOpen(id);
+  _matTimers[id] = setTimeout(async () => {
+    try {
+      const raw = await apiFetch(`/api/materials/search?q=${encodeURIComponent(q)}&limit=30`);
+      // Re-rank so the most obvious match floats to the top:
+      //   0 = exact match on trade_name or inci_name
+      //   1 = starts-with (trade_name or inci_name), name begins with a letter
+      //   2 = starts-with but name starts with a non-letter (e.g. "(COMBO/...)")
+      //   3 = contains anywhere
+      const ql = q.toLowerCase();
+      const rank = m => {
+        const t = (m.trade_name || '').toLowerCase();
+        const n = (m.inci_name  || '').toLowerCase();
+        const startsLetter = /^[a-z]/i.test(m.trade_name || '');
+        if (t === ql || n === ql)                    return 0;
+        if ((t.startsWith(ql) || n.startsWith(ql)) && startsLetter) return 1;
+        if (t.startsWith(ql) || n.startsWith(ql))   return 2;
+        return 3;
+      };
+      const res = [...raw]
+        .sort((a, b) => rank(a) - rank(b) ||
+          (a.trade_name||'').toLowerCase().localeCompare((b.trade_name||'').toLowerCase()))
+        .slice(0, 15);
+      _matResults[id] = res;
+      if (!res.length) {
+        dd.innerHTML = '<div class="px-3 py-2 text-xs text-gray-500 italic">ไม่พบวัตถุดิบที่ตรงกัน</div>';
+        return;
+      }
+      dd.innerHTML = res.map((m, i) => `
+        <div class="mat-dd-item px-3 py-2 cursor-pointer border-b border-border/30 last:border-0"
+             data-idx="${i}"
+             onmousedown="event.preventDefault();_matPick(${id},${i})">
+          <div class="text-sm text-white leading-snug truncate">${_safeHtml(m.trade_name)}</div>
+          ${m.inci_name && m.inci_name.toLowerCase() !== m.trade_name.toLowerCase()
+            ? `<div class="text-[11px] text-gray-500 leading-snug truncate">${_safeHtml(m.inci_name)}</div>` : ''}
+          ${m.cas_number ? `<div class="text-[10px] text-gray-600">${_safeHtml(m.cas_number)}</div>` : ''}
+        </div>`).join('');
+    } catch (e) {
+      dd.innerHTML = '<div class="px-3 py-2 text-xs text-red-400">ค้นหาล้มเหลว</div>';
+    }
+  }, 220);
+}
+
+function _matKeyNav(e, id) {
+  const dd = document.getElementById(`mat-dd-${id}`);
+  if (!dd || dd.classList.contains('hidden')) return;
+  const items = dd.querySelectorAll('.mat-dd-item');
+  if (!items.length) return;
+  const active = dd.querySelector('.mat-dd-item.mat-dd-active');
+  let idx = active ? +active.dataset.idx : -1;
+  if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    _matPick(id, active ? +active.dataset.idx : 0);
+    return;
+  } else if (e.key === 'Escape') { _matDdClose(id); return; }
+  else return;
+  items.forEach(it => it.classList.toggle('mat-dd-active', +it.dataset.idx === idx));
+  if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+function _matPick(id, idx) {
+  const m = (_matResults[id] || [])[idx];
+  if (!m) return;
+  const row = document.getElementById(`ing-row-${id}`);
+  if (!row) return;
+  row.querySelector('.ing-mat-input').value = m.trade_name;
+  row.querySelector('.ing-mat-id').value    = m.id;
+  row.querySelector('.ing-mat-data').value  = JSON.stringify(m);
+  _matDdClose(id);
+  const pct = row.querySelector('.ing-pct');
+  if (pct) { pct.focus(); pct.select(); }
+  recalcTotal();
+}
+
+function _matClear(id) {
+  const row = document.getElementById(`ing-row-${id}`);
+  if (!row) return;
+  row.querySelector('.ing-mat-input').value = '';
+  row.querySelector('.ing-mat-id').value    = '';
+  row.querySelector('.ing-mat-data').value  = '';
+  _matDdClose(id);
+  recalcTotal();
+}
+
+function _matDdOpen(id) {
+  const dd = document.getElementById(`mat-dd-${id}`);
+  if (dd) dd.classList.remove('hidden');
+}
+function _matDdClose(id) {
+  const dd = document.getElementById(`mat-dd-${id}`);
+  if (dd) dd.classList.add('hidden');
+}
+
+// Close all dropdowns on outside click
+document.addEventListener('mousedown', e => {
+  document.querySelectorAll('.mat-dd').forEach(dd => {
+    const wrap = dd.closest('td');
+    if (wrap && !wrap.contains(e.target)) dd.classList.add('hidden');
+  });
+});
+
+async function loadWorksheet() {
+  // Materials are searched on demand — no bulk fetch needed
+  el('ws-formula-code').value     = '';
+  el('ws-product-name').value     = '';
+  el('ws-skin-type').value        = 'face';
+  el('ws-batch-size').value       = '100';
+  el('ws-notes').value            = '';
+  el('ws-ingredients').innerHTML  = '';
+  WS.rowCount = 0;
+  addIngRow();
+  addIngRow();
+  recalcTotal();
+}
+
+async function syncMaterials() {
+  const btn = el('sync-materials-btn');
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="animate-pulse">กำลัง Sync...</span>';
+  try {
+    const r = await fetch(API_BASE + '/api/sync-materials', { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const { inserted, total_candidates } = await r.json();
+    if (inserted > 0) {
+      toast(`นำเข้าสำเร็จ: +${inserted} วัตถุดิบใหม่จาก ${total_candidates} รายการ`);
+    } else {
+      toast(`วัตถุดิบครบแล้ว — ไม่มีรายการใหม่ (${total_candidates} รายการในผลสแกน)`);
+    }
+    // (WS no longer caches materials — combobox searches on demand)
+    await loadMaterials();
+  } catch(e) {
+    toast(`Sync ไม่สำเร็จ: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origHTML;
+  }
+}
+
+function addIngRow() {
+  const id = ++WS.rowCount;
+  const tr = document.createElement('tr');
+  tr.id = `ing-row-${id}`;
+  tr.className = 'table-row border-t border-border';
+  tr.innerHTML = `
+    <td class="px-4 py-2.5">
+      <select class="ing-phase bg-dark border border-border rounded-lg px-2 py-1.5
+                     text-sm text-white w-16 focus:border-green focus:outline-none cursor-pointer">
+        <option>A</option><option>B</option><option>C</option><option>D</option>
+      </select>
+    </td>
+    <td class="px-4 py-2.5 relative">
+      <!-- Searchable combobox — replaces <select> to handle 22 000+ materials -->
+      <div class="relative">
+        <input type="text" autocomplete="off" spellcheck="false"
+          class="ing-mat-input bg-dark border border-border rounded-lg px-2 py-1.5 pr-7
+                 text-sm text-white w-full focus:border-green focus:outline-none
+                 placeholder-gray-600"
+          placeholder="พิมพ์ชื่อ / INCI / CAS..."
+          oninput="_matSearch(this,${id})"
+          onkeydown="_matKeyNav(event,${id})"
+          onfocus="_matSearch(this,${id})">
+        <!-- clear button -->
+        <button type="button" tabindex="-1"
+          class="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-300
+                 leading-none text-base"
+          onmousedown="event.preventDefault();_matClear(${id})">✕</button>
+        <!-- hidden: selected material ID (sent to API on save) -->
+        <input type="hidden" class="ing-mat-id">
+        <!-- hidden: full material JSON (used by recalcTotal for cost + compliance) -->
+        <input type="hidden" class="ing-mat-data">
+        <!-- dropdown results panel -->
+        <div id="mat-dd-${id}"
+          class="mat-dd hidden absolute left-0 right-0 top-full mt-1 z-50
+                 bg-card border border-border rounded-xl shadow-2xl overflow-y-auto"
+          style="max-height:210px">
+        </div>
+      </div>
+    </td>
+    <td class="px-4 py-2.5">
+      <input type="number"
+        class="ing-pct bg-dark border border-border rounded-lg px-2 py-1.5
+               text-sm text-white w-full text-right focus:border-green focus:outline-none"
+        min="0.001" max="100" step="0.001" placeholder="0.000" oninput="recalcTotal()">
+    </td>
+    <td class="px-4 py-2.5 text-right">
+      <span class="ing-cost text-sm text-gray-500 tabular-nums">—</span>
+    </td>
+    <td class="px-4 py-2.5 text-center">
+      <span class="ing-comply"></span>
+    </td>
+    <td class="px-4 py-2.5 text-center">
+      <button onclick="removeIngRow(${id})"
+        class="w-7 h-7 rounded-lg inline-flex items-center justify-center
+               text-gray-600 hover:text-red-400 hover:bg-red-900/20 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7
+               m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
+    </td>`;
+  el('ws-ingredients').appendChild(tr);
+}
+
+function removeIngRow(id) {
+  const row = el(`ing-row-${id}`);
+  if (row) { row.remove(); recalcTotal(); }
+}
+
+function recalcTotal() {
+  const batch = parseFloat(el('ws-batch-size')?.value) || 100;
+  let sum = 0, totalCost = 0, hasCost = false;
+  const violations = [];
+
+  document.querySelectorAll('#ws-ingredients tr').forEach(row => {
+    const pct     = parseFloat(row.querySelector('.ing-pct')?.value) || 0;
+    const matJson = row.querySelector('.ing-mat-data')?.value;
+    const mat     = matJson ? (() => { try { return JSON.parse(matJson); } catch { return null; } })() : null;
+    const price   = parseFloat(mat?.price_per_kg) || 0;
+    const weightG = (pct / 100) * batch;
+    const cost    = weightG * price / 1000;
+
+    sum += pct;
+    if (price > 0) { hasCost = true; totalCost += cost; }
+
+    const costEl = row.querySelector('.ing-cost');
+    if (costEl) costEl.textContent = price > 0 ? `฿${cost.toFixed(2)}` : '—';
+
+    // Compliance badge (combined into single loop to avoid double iteration)
+    const badge = row.querySelector('.ing-comply');
+    if (mat && pct > 0) {
+      const result = _complyCheck(mat.inci_name, mat.trade_name, pct);
+      if (!result) { if (badge) badge.innerHTML = ''; }
+      else {
+        const { level, annex, exceeded } = result;
+        let bc, tc, icon, lbl;
+        if (level === 'banned')  { bc='#ef444420'; tc='#ef4444'; icon='⊗'; lbl='สารต้องห้าม'; }
+        else if (exceeded)       { bc='#f59e0b20'; tc='#f59e0b'; icon='⚠'; lbl='เกินเกณฑ์ อย.'; }
+        else                     { bc='#3b82f620'; tc='#3b82f6'; icon='ℹ'; lbl='สารควบคุม'; }
+        if (badge) badge.innerHTML = `<span class="badge whitespace-nowrap" style="background:${bc};color:${tc};font-size:.6rem;padding:1px 6px;">${icon} ${lbl} · ภาคผนวก ${annex}</span>`;
+        violations.push({ mat, result, pct });
+      }
+    } else {
+      if (badge) badge.innerHTML = '';
+    }
+  });
+
+  sum = Math.round(sum * 1000) / 1000;
+
+  const pct   = Math.min(sum, 100);
+  const isOk  = Math.abs(sum - 100) < 0.005;
+  const isOvr = sum > 100;
+  const color = isOk ? '#00e676' : isOvr ? '#ef4444' : '#f59e0b';
+  const cls   = isOk ? 'text-green' : isOvr ? 'text-red-400' : 'text-amber-400';
+
+  el('ws-bar').style.width      = `${pct}%`;
+  el('ws-bar').style.background = color;
+  el('ws-total').textContent    = `${sum.toFixed(3)}%`;
+  el('ws-total').className      = `text-2xl font-bold tabular-nums ${cls}`;
+
+  let statusTxt, statusCls;
+  if (isOk) {
+    statusTxt = '✓ ครบ 100% — พร้อมบันทึก';
+    statusCls = 'text-xs text-green mt-0.5';
+  } else if (isOvr) {
+    statusTxt = `เกิน 100% โดย ${(sum - 100).toFixed(3)}%`;
+    statusCls = 'text-xs text-red-400 mt-0.5';
+  } else {
+    statusTxt = `ขาดอีก ${(100 - sum).toFixed(3)}%`;
+    statusCls = 'text-xs text-amber-400 mt-0.5';
+  }
+  el('ws-status').textContent = statusTxt;
+  el('ws-status').className   = statusCls;
+
+  const costRow = el('ws-cost-row');
+  if (hasCost) {
+    costRow.classList.remove('hidden');
+    el('ws-cost-total').textContent  = `฿${totalCost.toFixed(2)}`;
+    el('ws-cost-per-kg').textContent = `฿${(totalCost * 1000 / batch).toFixed(2)} / kg`;
+  } else {
+    costRow.classList.add('hidden');
+  }
+
+  _syncCompliancePanel(violations);
+}
+
+async function saveFormula() {
+  const code  = el('ws-formula-code').value.trim();
+  const name  = el('ws-product-name').value.trim();
+  const type  = el('ws-skin-type').value;
+  const batch = parseFloat(el('ws-batch-size').value) || 100;
+
+  if (!code) { toast('กรุณากรอกรหัสสูตร', true); return; }
+  if (!name) { toast('กรุณากรอกชื่อผลิตภัณฑ์', true); return; }
+
+  const ingredients = [];
+  document.querySelectorAll('#ws-ingredients tr').forEach(row => {
+    const matId = row.querySelector('.ing-mat-id')?.value;
+    const phase = row.querySelector('.ing-phase')?.value;
+    const pct   = parseFloat(row.querySelector('.ing-pct')?.value);
+    if (matId && !isNaN(pct) && pct > 0) {
+      ingredients.push({ material_id: matId, phase, percentage: pct });
+    }
+  });
+
+  const total = ingredients.reduce((s, i) => s + i.percentage, 0);
+  if (Math.abs(total - 100) > 0.01) {
+    if (!confirm(`ยอดรวม = ${total.toFixed(3)}% (ไม่ใช่ 100%)\nต้องการบันทึกต่อไปหรือไม่?`)) return;
+  }
+
+  const btn = el('ws-save-btn');
+  btn.disabled    = true;
+  btn.textContent = 'กำลังบันทึก...';
+
+  try {
+    const r = await fetch(API_BASE + '/api/formulas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        formula_code: code, product_name: name,
+        target_skin_type: type, batch_size_g: batch, ingredients,
+      }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    toast(`บันทึกสูตร "${name}" เรียบร้อยแล้ว`);
+    navigate('formulas');
+  } catch(e) {
+    toast(`ไม่สามารถบันทึกได้: ${e.message}`, true);
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'บันทึกสูตร';
+  }
+}
+
+/* ───────────────────── ASEAN regulatory data ───────────────────── */
+// ชื่อ INCI ตัวพิมพ์เล็ก → ข้อมูลกฎระเบียบ (สอดคล้องกับ backend/compliance.py)
+const COMPLY = {
+  // ภาคผนวก II — สารต้องห้าม
+  'benzene':                      {annex:'II',  level:'banned',     max:null,  cas:'71-43-2',        note:'สารก่อมะเร็ง (ระดับ 1A) — ห้ามใช้ในผลิตภัณฑ์เครื่องสำอางโดยเด็ดขาด (ภาคผนวก II)'},
+  'hexachlorophene':              {annex:'II',  level:'banned',     max:null,  cas:'70-30-4',        note:'สารต้านจุลชีพที่เป็นพิษต่อระบบประสาท — ห้ามใช้ (ภาคผนวก II)'},
+  'bithionol':                    {annex:'II',  level:'banned',     max:null,  cas:'97-18-7',        note:'สารที่ทำให้เกิดความไวแสง — ห้ามใช้ (ภาคผนวก II)'},
+  'chloroform':                   {annex:'II',  level:'banned',     max:null,  cas:'67-66-3',        note:'สาร CMR (ระดับ 2) — ห้ามใช้ (ภาคผนวก II)'},
+  'tretinoin':                    {annex:'II',  level:'banned',     max:null,  cas:'302-79-4',       note:'เรตินอิก แอซิด — ยาที่ต้องมีใบสั่งแพทย์ ห้ามใช้ในผลิตภัณฑ์เครื่องสำอาง (ภาคผนวก II)'},
+  'retinoic acid':                {annex:'II',  level:'banned',     max:null,  cas:'302-79-4',       note:'ยาที่ต้องมีใบสั่งแพทย์ — ห้ามใช้ในผลิตภัณฑ์เครื่องสำอาง (ภาคผนวก II)'},
+  'thimerosal':                   {annex:'II',  level:'banned',     max:null,  cas:'54-64-8',        note:'สารประกอบปรอทอินทรีย์ — ห้ามใช้ (ภาคผนวก II)'},
+  'phenylmercuric acetate':       {annex:'II',  level:'banned',     max:null,  cas:'62-38-4',        note:'สารประกอบปรอทอินทรีย์ — ห้ามใช้ (ภาคผนวก II)'},
+  'lead acetate':                 {annex:'II',  level:'banned',     max:null,  cas:'301-04-2',       note:'สารประกอบตะกั่ว — ห้ามใช้ในผลิตภัณฑ์เครื่องสำอาง (ภาคผนวก II)'},
+  // ภาคผนวก III — สารควบคุม
+  'salicylic acid':               {annex:'III', level:'restricted', max:2.0,   cas:'69-72-7',        note:'ใช้ได้ไม่เกิน 2% (Leave-on) / 3% (Rinse-off) — คำเตือนบนฉลาก: ห้ามใช้ในเด็กอายุต่ำกว่า 3 ปี (ภาคผนวก III ลำดับที่ 3)'},
+  'resorcinol':                   {annex:'III', level:'restricted', max:0.5,   cas:'108-46-3',       note:'ใช้ได้ไม่เกิน 0.5% (ผลิตภัณฑ์ย้อมผม) / 0.1% (ผลิตภัณฑ์ประเภท Leave-on) (ภาคผนวก III ลำดับที่ 54)'},
+  'hydroquinone':                 {annex:'III', level:'restricted', max:2.0,   cas:'123-31-9',       note:'ใช้ได้ไม่เกิน 2% ในภูมิภาคอาเซียน (ภาคผนวก III) หมายเหตุ: ห้ามใช้เพื่อวัตถุประสงค์ทั่วไปในสหภาพยุโรป ต้องระบุข้อความบนฉลาก'},
+  'kojic acid':                   {annex:'III', level:'restricted', max:1.0,   cas:'501-30-4',       note:'ใช้ได้ไม่เกิน 1% ในผลิตภัณฑ์ทาหน้าประเภท Leave-on (ตามประกาศ อย. ไทย / ข้อเสนอ EU)'},
+  'hydrogen peroxide':            {annex:'III', level:'restricted', max:4.0,   cas:'7722-84-1',      note:'ใช้ได้ไม่เกิน 4% (ผลิตภัณฑ์ดูแลเส้นผม) / 0.1% (ผลิตภัณฑ์ดูแลช่องปาก) (ภาคผนวก III)'},
+  'zinc pyrithione':              {annex:'III', level:'restricted', max:1.0,   cas:'13463-41-7',     note:'ใช้ได้ไม่เกิน 1% เฉพาะผลิตภัณฑ์ดูแลเส้นผมประเภทล้างออกเท่านั้น (ภาคผนวก III)'},
+  // ภาคผนวก VI — สารกันเสีย
+  'methylparaben':                {annex:'VI',  level:'restricted', max:0.4,   cas:'99-76-3',        note:'ใช้ได้ไม่เกิน 0.4% (ใช้เดี่ยว) / 0.8% (รวมกลุ่มพาราเบน) (ภาคผนวก VI ลำดับที่ 12)'},
+  'ethylparaben':                 {annex:'VI',  level:'restricted', max:0.4,   cas:'120-47-8',       note:'ใช้ได้ไม่เกิน 0.4% (ใช้เดี่ยว) / 0.8% (รวมกลุ่มพาราเบน) (ภาคผนวก VI ลำดับที่ 13)'},
+  'propylparaben':                {annex:'VI',  level:'restricted', max:0.14,  cas:'94-13-3',        note:'ใช้ได้ไม่เกิน 0.14% (ใช้เดี่ยว) / 0.19% (รวมพาราเบนสายยาว) (ภาคผนวก VI ลำดับที่ 14)'},
+  'butylparaben':                 {annex:'VI',  level:'restricted', max:0.14,  cas:'94-26-8',        note:'ใช้ได้ไม่เกิน 0.14% (ใช้เดี่ยว) (ภาคผนวก VI ลำดับที่ 15)'},
+  'isobutylparaben':              {annex:'VI',  level:'restricted', max:0.14,  cas:'4247-02-3',      note:'ใช้ได้ไม่เกิน 0.14% (ใช้เดี่ยว) (ภาคผนวก VI)'},
+  'phenoxyethanol':               {annex:'VI',  level:'restricted', max:1.0,   cas:'122-99-6',       note:'ใช้ได้ไม่เกิน 1.0% (ภาคผนวก VI ลำดับที่ 29) หลีกเลี่ยงการใช้ในผลิตภัณฑ์สำหรับทารกและเด็กอายุต่ำกว่า 3 ปี'},
+  'benzyl alcohol':               {annex:'VI',  level:'restricted', max:1.0,   cas:'100-51-6',       note:'ใช้ได้ไม่เกิน 1.0% ในฐานะสารกันเสีย (ภาคผนวก VI ลำดับที่ 34) สารก่อภูมิแพ้จากน้ำหอม — ต้องระบุชื่อบนฉลากผลิตภัณฑ์'},
+  'triclosan':                    {annex:'VI',  level:'restricted', max:0.3,   cas:'3380-34-5',      note:'ใช้ได้ไม่เกิน 0.3% เฉพาะในผลิตภัณฑ์บางประเภทที่ได้รับอนุญาตเท่านั้น (ภาคผนวก VI ลำดับที่ 46)'},
+  'chlorphenesin':                {annex:'VI',  level:'restricted', max:0.3,   cas:'104-29-0',       note:'ใช้ได้ไม่เกิน 0.3% (ภาคผนวก VI ลำดับที่ 48)'},
+  'dehydroacetic acid':           {annex:'VI',  level:'restricted', max:0.6,   cas:'520-45-6',       note:'ใช้ได้ไม่เกิน 0.6% (รูปแบบกรด) / 0.725% (รูปแบบเกลือโซเดียม) (ภาคผนวก VI ลำดับที่ 9)'},
+  'dmdm hydantoin':               {annex:'VI',  level:'restricted', max:0.6,   cas:'6440-58-0',      note:'ใช้ได้ไม่เกิน 0.6% สารกันเสียประเภทปล่อยฟอร์มาลดีไฮด์ (ภาคผนวก VI ลำดับที่ 23)'},
+  'imidazolidinyl urea':          {annex:'VI',  level:'restricted', max:0.6,   cas:'39236-46-9',     note:'ใช้ได้ไม่เกิน 0.6% สารกันเสียประเภทปล่อยฟอร์มาลดีไฮด์ (ภาคผนวก VI ลำดับที่ 24)'},
+  'sodium benzoate':              {annex:'VI',  level:'restricted', max:0.5,   cas:'532-32-1',       note:'ใช้ได้ไม่เกิน 0.5% (คำนวณในรูป Benzoic acid) (ภาคผนวก VI ลำดับที่ 1)'},
+  'potassium sorbate':            {annex:'VI',  level:'restricted', max:0.6,   cas:'24634-61-5',     note:'ใช้ได้ไม่เกิน 0.6% (คำนวณในรูป Sorbic acid) (ภาคผนวก VI ลำดับที่ 5)'},
+  'sorbic acid':                  {annex:'VI',  level:'restricted', max:0.6,   cas:'110-44-1',       note:'ใช้ได้ไม่เกิน 0.6% (ภาคผนวก VI ลำดับที่ 5)'},
+  'benzoic acid':                 {annex:'VI',  level:'restricted', max:0.5,   cas:'65-85-0',        note:'ใช้ได้ไม่เกิน 0.5% (ภาคผนวก VI ลำดับที่ 1)'},
+  'chlorhexidine':                {annex:'VI',  level:'restricted', max:0.3,   cas:'55-56-1',        note:'ใช้ได้ไม่เกิน 0.3% (รูปแบบ Digluconate) (ภาคผนวก VI ลำดับที่ 42)'},
+  // ภาคผนวก VII — ตัวกรองรังสี UV
+  'ethylhexyl methoxycinnamate':  {annex:'VII', level:'restricted', max:10.0,  cas:'5466-77-3',      note:'ใช้ได้ไม่เกิน 10% สารกันแดด UV-B (Octinoxate) (ภาคผนวก VII ลำดับที่ 13)'},
+  'benzophenone-3':               {annex:'VII', level:'restricted', max:10.0,  cas:'131-57-7',       note:'ใช้ได้ไม่เกิน 10% สารกันแดด (Oxybenzone) (ภาคผนวก VII ลำดับที่ 4)'},
+  'butyl methoxydibenzoylmethane':{annex:'VII', level:'restricted', max:5.0,   cas:'70356-09-1',     note:'ใช้ได้ไม่เกิน 5% สารกันแดด UV-A (Avobenzone) (ภาคผนวก VII ลำดับที่ 5)'},
+  'octocrylene':                  {annex:'VII', level:'restricted', max:10.0,  cas:'6197-30-4',      note:'ใช้ได้ไม่เกิน 10% สารกันแดด (ภาคผนวก VII ลำดับที่ 10)'},
+  'homosalate':                   {annex:'VII', level:'restricted', max:10.0,  cas:'118-56-9',       note:'ใช้ได้ไม่เกิน 10% สารกันแดด UV-B (ภาคผนวก VII ลำดับที่ 6)'},
+  'ethylhexyl salicylate':        {annex:'VII', level:'restricted', max:5.0,   cas:'118-60-5',       note:'ใช้ได้ไม่เกิน 5% สารกันแดด UV-B (Octisalate) (ภาคผนวก VII ลำดับที่ 7)'},
+  'titanium dioxide':             {annex:'VII', level:'restricted', max:25.0,  cas:'13463-67-7',     note:'ใช้ได้ไม่เกิน 25% สารกันแดด (ภาคผนวก VII ลำดับที่ 27) อนุภาคนาโน: ต้องระบุ [nano] บนฉลากผลิตภัณฑ์'},
+  'zinc oxide':                   {annex:'VII', level:'restricted', max:25.0,  cas:'1314-13-2',      note:'ใช้ได้ไม่เกิน 25% สารกันแดด (ภาคผนวก VII ลำดับที่ 30) อนุภาคนาโน: ต้องระบุ [nano] บนฉลากผลิตภัณฑ์'},
+};
+
+function _complyCheck(inciName, tradeName, pct) {
+  const key    = (inciName || tradeName || '').toLowerCase().trim();
+  const rule   = COMPLY[key];
+  if (!rule) return null;
+  const exceeded = rule.level === 'banned' || (rule.max != null && pct > rule.max);
+  return { ...rule, name: inciName || tradeName, pct, exceeded };
+}
+
+/* ───────────────────── price modal ───────────────────── */
+let _pmId = null;
+
+function openAddMaterial() {
+  _pmId = null;                               // null = create mode
+  el('pm-title').textContent = 'เพิ่มวัตถุดิบใหม่';
+  el('pm-name').textContent  = 'กรอกข้อมูลวัตถุดิบที่ต้องการเพิ่ม';
+  el('pm-add-fields').classList.remove('hidden');
+  el('pm-trade-name').value  = '';
+  el('pm-inci-name').value   = '';
+  el('pm-price').value       = '';
+  el('pm-cas').value         = '';
+  el('price-modal').classList.remove('hidden');
+  setTimeout(() => el('pm-trade-name').focus(), 60);
+}
+
+function editMaterialPrice(id, name, currentPrice, currentCas = '') {
+  _pmId = id;                                 // non-null = edit mode
+  el('pm-title').textContent = 'แก้ไขข้อมูลวัตถุดิบ';
+  el('pm-name').textContent  = name;
+  el('pm-add-fields').classList.add('hidden');  // hide create-only fields
+  el('pm-price').value       = currentPrice > 0 ? currentPrice : '';
+  el('pm-cas').value         = currentCas || '';
+  el('price-modal').classList.remove('hidden');
+  setTimeout(() => el('pm-price').select(), 60);
+}
+
+function closePriceModal() {
+  el('price-modal').classList.add('hidden');
+  _pmId = null;
+}
+
+async function saveMaterialPrice() {
+  const btn = el('pm-save-btn');
+  btn.disabled = true;
+
+  try {
+    if (_pmId === null) {
+      // ── CREATE mode ──────────────────────────────────────────────────
+      const tradeName = el('pm-trade-name').value.trim();
+      const inciName  = el('pm-inci-name').value.trim();
+      if (!tradeName) { toast('กรุณากรอกชื่อสินค้า', true); return; }
+      if (!inciName)  { toast('กรุณากรอก INCI Name', true);  return; }
+
+      const payload = { trade_name: tradeName, inci_name: inciName, is_active: true };
+      const price = parseFloat(el('pm-price').value);
+      if (!isNaN(price) && price >= 0) payload.price_per_kg = price;
+      const cas = el('pm-cas').value.trim();
+      if (cas) payload.cas_number = cas;
+
+      const r = await fetch(`${API_BASE}/api/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      closePriceModal();
+      toast(`เพิ่มวัตถุดิบ "${tradeName}" เรียบร้อยแล้ว`);
+
+    } else {
+      // ── EDIT mode ────────────────────────────────────────────────────
+      const price = parseFloat(el('pm-price').value);
+      const cas   = el('pm-cas').value.trim();
+      const patch = {};
+      if (!isNaN(price) && price >= 0) patch.price_per_kg = price;
+      if (cas) patch.cas_number = cas;
+      if (!Object.keys(patch).length) { closePriceModal(); return; }
+
+      const r = await fetch(`${API_BASE}/api/materials/${_pmId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      closePriceModal();
+      const parts = [];
+      if (patch.price_per_kg != null) parts.push(`฿${patch.price_per_kg.toFixed(2)}/kg`);
+      if (patch.cas_number)           parts.push(`CAS: ${patch.cas_number}`);
+      toast(`บันทึกเรียบร้อย — ${parts.join(' · ')}`);
+    }
+
+    // (WS no longer caches materials)
+    await loadMaterials();
+  } catch(e) {
+    toast(`ไม่สำเร็จ: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ── Materials search filter ── */
+let _matCache = [];
+
+function filterMaterials(q) {
+  const query = (q || '').toLowerCase();
+  const filtered = query
+    ? _matCache.filter(m =>
+        (m.trade_name     || '').toLowerCase().includes(query) ||
+        (m.inci_name      || '').toLowerCase().includes(query) ||
+        (m.cas_number     || '').toLowerCase().includes(query) ||
+        (m.supplier       || '').toLowerCase().includes(query))
+    : _matCache;
+  el('materials-body').innerHTML = _renderMaterialsTable(filtered);
+}
+
+function _renderMaterialsTable(items) {
+  const skinMap = {};
+  const cols = [
+    { label:'ชื่อสินค้า', key:'trade_name',
+      render: r => `<span class="font-medium text-white">${r.trade_name}</span>` },
+    { label:'INCI Name', key:'inci_name',
+      render: r => `<span class="font-mono text-xs text-gray-300">${r.inci_name || '—'}</span>` },
+    { label:'CAS', key:'cas_number',
+      render: r => r.cas_number
+        ? `<span class="font-mono text-xs text-gray-400">${r.cas_number}</span>`
+        : '<span class="text-gray-600 text-xs">—</span>' },
+    { label:'กฎระเบียบ', key:'inci_name',
+      render: r => {
+        const rule = _complyCheck(r.inci_name, r.trade_name, 0);
+        if (!rule) return '<span class="text-gray-700 text-xs">—</span>';
+        if (rule.level === 'banned')
+          return badgeHtml(`⊗ Annex ${rule.annex}`, '#ef4444');
+        return badgeHtml(`Annex ${rule.annex}`, '#f59e0b');
+      } },
+    { label:'ซัพพลายเออร์', key:'supplier',
+      render: r => r.supplier || '<span class="text-gray-600">—</span>' },
+    { label:'ราคา/กก.', key:'price_per_kg',
+      render: r => r.price_per_kg > 0
+        ? `<span class="text-green font-medium">฿${Number(r.price_per_kg).toLocaleString('th-TH',{minimumFractionDigits:2})}</span>`
+        : '<span class="text-gray-600">—</span>' },
+    { label:'สถานะ', key:'is_active',
+      render: r => r.is_active ? badgeHtml('ใช้งาน','#00e676') : badgeHtml('ปิด','#ef4444') },
+    { label:'', key:'id',
+      render: r => {
+        const name  = (r.trade_name || '').replace(/'/g, '');
+        const price = parseFloat(r.price_per_kg) || 0;
+        const cas   = (r.cas_number || '').replace(/'/g, '');
+        return `<button onclick="editMaterialPrice('${r.id}','${name}',${price},'${cas}')"
+          class="px-2.5 py-1.5 rounded-lg border border-border text-xs text-gray-400
+                 hover:text-slate-900 hover:border-slate-300 hover:bg-cardHov transition-colors">
+          แก้ไข</button>`;
+      } },
+  ];
+  return renderTable(cols, items, 'ไม่พบวัตถุดิบ', 'ลองเปลี่ยนคำค้นหา หรือกด "นำเข้าจากผลสแกน"');
+}
+
+/* ── Compliance panel (worksheet) ── */
+function _syncCompliancePanel(violations) {
+  const panel = el('ws-compliance-panel');
+  const body  = el('ws-compliance-body');
+  if (!violations.length) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+  body.innerHTML = violations.map(({ mat, result, pct }) => {
+    const { level, annex, max, exceeded, note, cas, name } = result;
+    const banned = level === 'banned';
+    const [bc, tc, icon] = banned    ? ['#ef444412','#ef4444','⊗'] :
+                           exceeded  ? ['#f59e0b12','#f59e0b','⚠'] :
+                                       ['#3b82f612','#3b82f6','ℹ'];
+    const header = banned   ? `สารต้องห้าม (ห้ามใช้เด็ดขาด) — ภาคผนวก ${annex}` :
+                   exceeded ? `เกินเกณฑ์มาตรฐาน อย. — ภาคผนวก ${annex} (ใช้ ${pct.toFixed(3)}% / เกณฑ์สูงสุด ${max}%)` :
+                              `สารควบคุม (อยู่ในเกณฑ์กำหนด) — ภาคผนวก ${annex} (ใช้ ${pct.toFixed(3)}% / เกณฑ์สูงสุด ${max}%)`;
+    const trade = mat.trade_name !== name ? ` <span class="text-[10px] text-gray-500">(${mat.trade_name})</span>` : '';
+    return `
+      <div class="rounded-lg border px-4 py-3" style="background:${bc};border-color:${tc}40;">
+        <div class="flex items-start gap-2">
+          <span style="color:${tc};" class="text-base leading-none flex-shrink-0 mt-0.5">${icon}</span>
+          <div class="min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-wider" style="color:${tc};">${header}</p>
+            <p class="text-xs font-semibold text-gray-200 mt-0.5">${name}${trade}</p>
+            <p class="text-[11px] text-gray-400 mt-1 leading-snug">${note}</p>
+            ${cas ? `<p class="text-[10px] text-gray-600 mt-0.5 font-mono">CAS ${cas}</p>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ───────────────────── formula detail ───────────────────── */
+const FD = { id: null };
+
+function openFormulaDetail(id) {
+  FD.id = id;
+  navigate('formula-detail');
+}
+
+async function loadFormulaDetail() {
+  if (!FD.id) { navigate('formulas'); return; }
+  el('fd-skeleton').classList.remove('hidden');
+  el('fd-content').classList.add('hidden');
+  el('fd-error').classList.add('hidden');
+  try {
+    const f = await apiFetch(`/api/formulas/${FD.id}`);
+    _renderFormulaDetail(f);
+  } catch(e) {
+    el('fd-skeleton').classList.add('hidden');
+    el('fd-error').classList.remove('hidden');
+    el('fd-error').textContent = `เกิดข้อผิดพลาด: ${e.message}`;
+  }
+}
+
+function _renderFormulaDetail(f) {
+  const skinMap   = { face:'ใบหน้า', body:'ร่างกาย', 'rinse-off':'ล้างออก' };
+  const statusMap = {
+    draft:             ['#6b7280','ร่าง'],
+    stability_testing: ['#f59e0b','ทดสอบความคงตัว'],
+    approved:          ['#00e676','อนุมัติ'],
+    rejected:          ['#ef4444','ปฏิเสธ'],
+  };
+  const phaseColors = { A:'#3b82f6', B:'#8b5cf6', C:'#f59e0b', D:'#ec4899' };
+
+  el('fd-code').textContent    = f.formula_code;
+  el('fd-name').textContent    = f.product_name;
+  el('fd-created').textContent = f.created_at
+    ? new Date(f.created_at).toLocaleDateString('th-TH') : '—';
+  el('fd-updated').textContent = f.updated_at
+    ? new Date(f.updated_at).toLocaleDateString('th-TH') : '—';
+
+  const [sc, sl] = statusMap[f.status] || ['#6b7280', f.status];
+  el('fd-badges').innerHTML =
+    badgeHtml(sl, sc) + ' ' +
+    `<span class="badge bg-cardHov text-gray-300">${skinMap[f.target_skin_type]||f.target_skin_type}</span>`;
+
+  el('fd-batch').textContent = `${Number(f.batch_size_g).toLocaleString()} g`;
+  el('fd-skin').textContent  = skinMap[f.target_skin_type] || f.target_skin_type;
+  el('fd-loss').textContent  = `${f.loss_percentage ?? 0}%`;
+
+  const ings  = Array.isArray(f.ingredients) ? f.ingredients : [];
+  const total = ings.reduce((s, i) => s + (i.percentage || 0), 0);
+  const batch = parseFloat(f.batch_size_g) || 100;
+
+  el('fd-ing-count').textContent = `${ings.length} รายการ`;
+  const totalOk = Math.abs(total - 100) < 0.01;
+  el('fd-total-badge').textContent = `รวม ${total.toFixed(3)}%`;
+  el('fd-total-badge').className   =
+    `text-sm font-bold tabular-nums ${totalOk ? 'text-green' : 'text-amber-400'}`;
+
+  if (!ings.length) {
+    el('fd-ingredients').innerHTML = `
+      <tr><td colspan="4"
+        class="px-4 py-8 text-center text-xs text-gray-600 italic">
+        ไม่มีส่วนผสมในสูตรนี้
+      </td></tr>`;
+  } else {
+    el('fd-ingredients').innerHTML = ings.map(ing => {
+      const mat   = ing.raw_materials || {};
+      const name  = mat.trade_name || '—';
+      const inci  = mat.inci_name  || '';
+      const grams = ((ing.percentage / 100) * batch).toFixed(3);
+      const c     = phaseColors[ing.phase] || '#6b7280';
+      return `
+        <tr class="table-row border-t border-border">
+          <td class="px-4 py-3">
+            <span class="badge font-mono font-semibold"
+                  style="background:${c}18;color:${c};">${ing.phase}</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="text-sm text-white font-medium">${name}</span>
+            ${inci ? `<span class="block text-[11px] text-gray-500 mt-0.5 font-mono">${inci}</span>` : ''}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <span class="text-sm text-gray-300 tabular-nums">${ing.percentage.toFixed(3)}%</span>
+          </td>
+          <td class="px-4 py-3 text-right">
+            <span class="text-sm font-medium text-green tabular-nums">${grams} g</span>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  el('fd-skeleton').classList.add('hidden');
+  el('fd-content').classList.remove('hidden');
+}
+
+/* ───────────────────── lab sheet ───────────────────── */
+async function loadLabSheet() {
+  if (!FD.id) { navigate('formulas'); return; }
+  el('ls-phases').innerHTML = `<div class="skeleton h-64"></div>`;
+  try {
+    const f = await apiFetch(`/api/formulas/${FD.id}`);
+    _renderLabSheet(f);
+  } catch(e) {
+    el('ls-phases').innerHTML =
+      `<p class="text-red-600 text-sm p-4">เกิดข้อผิดพลาด: ${e.message}</p>`;
+  }
+}
+
+function _renderLabSheet(f) {
+  const skinMap   = { face:'ใบหน้า (Face)', body:'ร่างกาย (Body)', 'rinse-off':'ล้างออก (Rinse-off)' };
+  const statusMap = {
+    draft:'Draft', stability_testing:'Stability Testing',
+    approved:'Approved', rejected:'Rejected',
+  };
+
+  el('ls-product-name').textContent = f.product_name;
+  el('ls-formula-code').textContent = f.formula_code;
+  el('ls-date').textContent         = new Date().toLocaleDateString('th-TH');
+  el('ls-status').textContent       = statusMap[f.status] || f.status;
+  el('ls-batch').textContent        = `${Number(f.batch_size_g).toLocaleString()} g`;
+  el('ls-skin').textContent         = skinMap[f.target_skin_type] || f.target_skin_type;
+
+  const ings  = Array.isArray(f.ingredients) ? f.ingredients : [];
+  const batch = parseFloat(f.batch_size_g) || 100;
+  const total = ings.reduce((s, i) => s + (i.percentage || 0), 0);
+  let totalCost = 0, hasCost = false;
+  ings.forEach(ing => {
+    const p = parseFloat((ing.raw_materials || {}).price_per_kg) || 0;
+    if (p > 0) { hasCost = true; totalCost += (ing.percentage / 100) * batch * p / 1000; }
+  });
+
+  el('ls-total-pct').textContent  = `${total.toFixed(3)}%`;
+  el('ls-total-cost').textContent = hasCost ? `฿${totalCost.toFixed(2)}` : '—';
+  el('ls-phases').innerHTML       = _renderLsPhases(ings, batch);
+
+  const savedProc = localStorage.getItem(`ls_proc_${f.id}`) || '';
+  el('ls-procedure').value = savedProc;
+
+  // Regulatory compliance section
+  const compIssues = ings
+    .map(ing => {
+      const mat = ing.raw_materials || {};
+      return _complyCheck(mat.inci_name, mat.trade_name, ing.percentage);
+    })
+    .filter(Boolean);
+
+  const compSec = el('ls-compliance-section');
+  if (compIssues.length) {
+    compSec.classList.remove('hidden');
+    el('ls-compliance-body').innerHTML = compIssues.map(issue => {
+      const banned    = issue.level === 'banned';
+      const exceeded  = issue.exceeded;
+      const [bg, br, tc] = banned   ? ['#fef2f2','#fca5a5','#dc2626'] :
+                           exceeded ? ['#fffbeb','#fcd34d','#b45309'] :
+                                      ['#eff6ff','#bfdbfe','#1d4ed8'];
+      const label = banned   ? `สารต้องห้าม (ห้ามใช้เด็ดขาด) — ภาคผนวก ${issue.annex}` :
+                    exceeded ? `เกินเกณฑ์มาตรฐาน อย. — ภาคผนวก ${issue.annex} (ใช้ ${issue.pct.toFixed(3)}% / เกณฑ์สูงสุด ${issue.max}%)` :
+                               `สารควบคุม (อยู่ในเกณฑ์กำหนด) — ภาคผนวก ${issue.annex}`;
+      return `
+        <div style="background:${bg};border:1px solid ${br};border-radius:6px;padding:8px 12px;margin-bottom:6px;">
+          <p style="font-size:9px;font-weight:700;color:${tc};text-transform:uppercase;letter-spacing:.05em;">${label}</p>
+          <p style="font-size:11px;font-weight:600;color:#111827;margin-top:2px;">${issue.name}</p>
+          <p style="font-size:10px;color:#6b7280;margin-top:2px;line-height:1.4;">${issue.note}</p>
+          ${issue.cas ? `<p style="font-size:9px;color:#9ca3af;font-family:monospace;margin-top:2px;">CAS: ${issue.cas}</p>` : ''}
+        </div>`;
+    }).join('');
+  } else {
+    compSec.classList.add('hidden');
+  }
+}
+
+function _renderLsPhases(ings, batch) {
+  if (!ings.length) return '<p class="text-gray-400 text-sm italic">ไม่มีส่วนผสม</p>';
+
+  const phaseNames = {
+    A:'Water Phase / วอเตอร์เฟส', B:'Oil Phase / ออยล์เฟส',
+    C:'Active Phase / สารออกฤทธิ์', D:'Cool-down Phase / ระยะปรับอุณหภูมิ',
+  };
+  const allPhases = [...new Set(ings.map(i => i.phase))].sort();
+
+  return allPhases.map(phase => {
+    const rows = ings.filter(i => i.phase === phase);
+    const phaseTotal = rows.reduce((s, i) => s + i.percentage, 0);
+    const trs = rows.map(ing => {
+      const mat   = ing.raw_materials || {};
+      const name  = mat.trade_name || '—';
+      const inci  = mat.inci_name && mat.inci_name !== mat.trade_name
+        ? `<span class="block text-xs text-gray-400 font-mono mt-0.5">${mat.inci_name}</span>` : '';
+      const grams = ((ing.percentage / 100) * batch).toFixed(3);
+      const price = parseFloat(mat.price_per_kg) || 0;
+      const cost  = price > 0
+        ? `฿${((ing.percentage / 100) * batch * price / 1000).toFixed(2)}` : '—';
+      return `
+        <tr class="border-t border-gray-200">
+          <td class="py-2.5 pr-4 text-sm text-gray-900">${name}${inci}</td>
+          <td class="py-2.5 pr-4 text-sm text-right tabular-nums text-gray-700 whitespace-nowrap">${ing.percentage.toFixed(4)}%</td>
+          <td class="py-2.5 pr-4 text-sm text-right tabular-nums font-semibold text-gray-900 whitespace-nowrap">${grams} g</td>
+          <td class="py-2.5 text-sm text-right tabular-nums text-gray-500 whitespace-nowrap">${cost}</td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">
+            Phase ${phase} — ${phaseNames[phase] || ''}
+          </h3>
+          <span class="text-xs text-gray-400 tabular-nums">${phaseTotal.toFixed(4)}%</span>
+        </div>
+        <table class="w-full">
+          <thead>
+            <tr class="border-b-2 border-gray-300">
+              <th class="pb-2 text-left text-[10px] uppercase tracking-wider text-gray-400 font-bold">สาร / INCI</th>
+              <th class="pb-2 text-right text-[10px] uppercase tracking-wider text-gray-400 font-bold pr-4">%</th>
+              <th class="pb-2 text-right text-[10px] uppercase tracking-wider text-gray-400 font-bold pr-4">น้ำหนัก</th>
+              <th class="pb-2 text-right text-[10px] uppercase tracking-wider text-gray-400 font-bold">ต้นทุน</th>
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+}
+
+function saveLsProcedure() {
+  if (FD.id) localStorage.setItem(`ls_proc_${FD.id}`, el('ls-procedure').value);
+}
+
+/* ───────────────────── live scraper ───────────────────── */
+let _scrapeJobId    = null;
+let _scrapeTimer    = null;
+let _scrapePollN    = 0;
+const _POLL_MAX     = 120;   // 120 × 2.5 s ≈ 5 min
+
+function _setScrapeStatus(status, text, sub = '') {
+  const wrap = el('scrape-job-status');
+  wrap.classList.remove('hidden');
+  wrap.classList.add('flex');
+  el('scrape-status-text').textContent = text;
+  el('scrape-status-sub').textContent  = sub;
+  const spinner = el('scrape-spinner');
+  const badge   = el('scrape-status-badge');
+  const cfg     = STATUS_CFG[status] || { color:'#6b7280', label: status };
+  spinner.style.display = (status === 'running' || status === 'pending') ? '' : 'none';
+  badge.textContent      = cfg.label;
+  badge.style.background = `${cfg.color}18`;
+  badge.style.color      = cfg.color;
+}
+
+async function triggerScrape() {
+  const url = el('scrape-url').value.trim();
+  if (!url) { toast('กรุณากรอก URL', true); return; }
+  try { new URL(url); } catch { toast('URL ไม่ถูกต้อง — ต้องเริ่มด้วย https://', true); return; }
+
+  clearTimeout(_scrapeTimer);
+  _scrapePollN = 0;
+  el('scrape-btn').disabled = true;
+  _setScrapeStatus('pending', 'กำลังสร้าง Job...', url);
+
+  try {
+    const r = await fetch(API_BASE + '/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const { job_id } = await r.json();
+    _scrapeJobId = job_id;
+    _setScrapeStatus('running',
+      'กำลังดึงข้อมูล — Playwright กำลังทำงาน...', `Job: ${job_id}`);
+    _pollScrapeJob();
+  } catch(e) {
+    _setScrapeStatus('failed', `เริ่มงานไม่สำเร็จ: ${e.message}`, '');
+    el('scrape-btn').disabled = false;
+  }
+}
+
+async function _pollScrapeJob() {
+  if (!_scrapeJobId) return;
+  if (++_scrapePollN > _POLL_MAX) {
+    _setScrapeStatus('failed', 'หมดเวลา (5 นาที) — กรุณาลองใหม่', '');
+    el('scrape-btn').disabled = false;
+    return;
+  }
+  try {
+    const data     = await apiFetch(`/scrape/${_scrapeJobId}`);
+    const status   = data.job?.status;
+    const ingCount = data.result?.parsed?.length ?? 0;
+
+    if (status === 'success') {
+      _setScrapeStatus('success',
+        `สำเร็จ — พบ ${ingCount} ส่วนผสม`, `Job: ${_scrapeJobId}`);
+      toast(`ดึงข้อมูลสำเร็จ — พบ ${ingCount} ส่วนผสม`);
+      el('scrape-btn').disabled = false;
+      _scrapeJobId = null;
+      await loadScrapes();
+    } else if (status === 'failed') {
+      const errMsg = data.job?.error || 'ไม่ทราบสาเหตุ';
+      _setScrapeStatus('failed', `ล้มเหลว: ${errMsg}`, `Job: ${_scrapeJobId}`);
+      toast('ดึงข้อมูลล้มเหลว', true);
+      el('scrape-btn').disabled = false;
+      _scrapeJobId = null;
+    } else {
+      _scrapeTimer = setTimeout(_pollScrapeJob, 2500);
+    }
+  } catch {
+    _scrapeTimer = setTimeout(_pollScrapeJob, 3000);
+  }
+}
+
+/* ───────────────────── bulk scraper ───────────────────── */
+let _bulkJobId  = null;
+let _bulkTimer  = null;
+let _bulkPollN  = 0;
+const _BULK_MAX = 300;  // 300 × 3 s ≈ 15 min
+
+function _setBulkStatus(key, text, pct) {
+  const wrap = el('bulk-status');
+  wrap.classList.remove('hidden');
+  wrap.classList.add('flex');
+
+  el('bulk-status-text').textContent    = text;
+  el('bulk-progress-bar').style.width   = `${pct}%`;
+  const running = ['discovering','scraping','pending','running'].includes(key);
+  el('bulk-spinner').style.display      = running ? '' : 'none';
+
+  const cfgMap = {
+    success: { bg:'#00e67618', fg:'#00e676', lbl:'เสร็จสิ้น' },
+    failed:  { bg:'#ef444418', fg:'#ef4444', lbl:'ล้มเหลว'  },
+  };
+  const cfg = cfgMap[key] || { bg:'#f59e0b18', fg:'#f59e0b', lbl:'กำลังทำงาน' };
+  const badge = el('bulk-status-badge');
+  badge.style.background = cfg.bg;
+  badge.style.color      = cfg.fg;
+  badge.textContent      = cfg.lbl;
+  el('bulk-progress-bar').style.background = cfg.fg;
+}
+
+async function triggerBulkScrape() {
+  const url = el('bulk-url').value.trim();
+  if (!url) { toast('กรุณากรอก URL หมวดหมู่', true); return; }
+  try { new URL(url); } catch { toast('URL ไม่ถูกต้อง — ต้องเริ่มด้วย https://', true); return; }
+
+  clearTimeout(_bulkTimer);
+  _bulkPollN = 0;
+  el('bulk-btn').disabled = true;
+  _setBulkStatus('pending', 'กำลังเชื่อมต่อ...', 0);
+
+  try {
+    const r = await fetch(API_BASE + '/api/scrape/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const { bulk_job_id } = await r.json();
+    _bulkJobId = bulk_job_id;
+    _setBulkStatus('discovering', 'กำลังค้นหารายการสินค้าในหมวดหมู่...', 0);
+    _pollBulkJob();
+  } catch(e) {
+    _setBulkStatus('failed', `ไม่สำเร็จ: ${e.message}`, 0);
+    el('bulk-btn').disabled = false;
+  }
+}
+
+async function _pollBulkJob() {
+  if (!_bulkJobId) return;
+  if (++_bulkPollN > _BULK_MAX) {
+    _setBulkStatus('failed', 'หมดเวลา (15 นาที) — กรุณาลองใหม่', 0);
+    el('bulk-btn').disabled = false;
+    return;
+  }
+  try {
+    const job = await apiFetch(`/api/scrape/bulk/${_bulkJobId}`);
+    const { status, total, done, failed, materials_added } = job;
+    const progress = total > 0 ? Math.round((done + failed) / total * 100) : 0;
+
+    if (status === 'discovering') {
+      _setBulkStatus('discovering', 'กำลังค้นหารายการสินค้าในหมวดหมู่...', 0);
+      _bulkTimer = setTimeout(_pollBulkJob, 2500);
+
+    } else if (status === 'scraping') {
+      const added = materials_added > 0 ? ` — เพิ่ม ${materials_added} INCI ใหม่` : '';
+      _setBulkStatus('scraping',
+        `กำลังดึงข้อมูล ${done + failed} / ${total} สินค้า${added}`,
+        progress);
+      _bulkTimer = setTimeout(_pollBulkJob, 3000);
+
+    } else if (status === 'done') {
+      _setBulkStatus('success',
+        `เสร็จสิ้น — ดึง ${total} สินค้า เพิ่ม ${materials_added} วัตถุดิบใหม่เข้าคลัง`,
+        100);
+      el('bulk-btn').disabled = false;
+      _bulkJobId = null;
+      toast(`Bulk Import สำเร็จ — เพิ่ม ${materials_added} วัตถุดิบจาก ${total} สินค้า`);
+      await loadMaterials();
+
+    } else if (status === 'failed') {
+      _setBulkStatus('failed', `ล้มเหลว: ${job.error || 'ไม่ทราบสาเหตุ'}`, 0);
+      el('bulk-btn').disabled = false;
+      _bulkJobId = null;
+
+    } else {
+      _bulkTimer = setTimeout(_pollBulkJob, 2500);
+    }
+  } catch {
+    _bulkTimer = setTimeout(_pollBulkJob, 3500);
+  }
+}
+
+/* ───────────────────── init ───────────────────── */
+document.addEventListener('DOMContentLoaded', () => navigate('dashboard'));
+</script>
+</body>
+</html>

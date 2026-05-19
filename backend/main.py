@@ -511,10 +511,16 @@ async def get_trends_news():
                     continue
                 for item in data.get('items', [])[:5]:
                     title = item.get('title', '').strip()
+                    # Google News appends " - SourceName" to title
+                    src_from_title = ''
                     if ' - ' in title:
                         title, src_from_title = title.rsplit(' - ', 1)
-                    else:
-                        src_from_title = item.get('author', '')
+                    # Also try extracting source from description HTML
+                    # Google News puts it after    (non-breaking spaces)
+                    desc = item.get('description', '') or item.get('content', '')
+                    import re as _re
+                    m = _re.search(r'  ([^<"]+)', desc)
+                    src_from_desc = m.group(1).strip() if m else ''
                     if title in seen:
                         continue
                     seen.add(title)
@@ -523,7 +529,7 @@ async def get_trends_news():
                         'title':    title.strip(),
                         'link':     item.get('link', ''),
                         'pubDate':  pub,
-                        'source':   item.get('author') or src_from_title,
+                        'source':   src_from_desc or src_from_title or item.get('author', ''),
                         'category': category,
                     })
             except Exception:

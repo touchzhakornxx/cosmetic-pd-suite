@@ -3,10 +3,6 @@
     {
       "source": "/api/:path*",
       "destination": "https://cosmetic-pd-suite.onrender.com/api/:path*"
-    },
-    {
-      "source": "/:path*",
-      "destination": "/frontend/index.html"
     }
   ]
 }
